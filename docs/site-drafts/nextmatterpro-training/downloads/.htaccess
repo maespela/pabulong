@@ -1,0 +1,16 @@
+# Installers download as files with a size and resume support: the site-wide
+# nosniff header would otherwise let a browser render an unknown type as text,
+# and on-the-fly compression drops Content-Length and ranges.
+AddType application/octet-stream .pkg
+AddType text/plain .sha256
+SetEnvIfNoCase Request_URI "\.pkg$" no-gzip no-brotli dont-vary
+<IfModule mod_headers.c>
+  <FilesMatch "\.pkg$">
+    Header set Content-Disposition "attachment"
+    Header set Cache-Control "public, max-age=31536000, immutable"
+    Header set X-Robots-Tag "noindex"
+  </FilesMatch>
+  <FilesMatch "\.sha256$">
+    Header set X-Robots-Tag "noindex"
+  </FilesMatch>
+</IfModule>
