@@ -1,0 +1,5 @@
+#!/bin/sh
+# Quit a running copy so the new app and driver load cleanly after install.
+/usr/bin/pkill -x Pabulong >/dev/null 2>&1 || true
+/usr/bin/pkill -x PabulongHelper >/dev/null 2>&1 || true
+exit 0

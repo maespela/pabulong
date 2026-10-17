@@ -9,7 +9,7 @@ public struct DiagnosticsSnapshot: Codable, Equatable, Sendable {
     public var processor: ProcessorMetrics
 
     public init(
-        appVersion: String = "0.1.0-dev",
+        appVersion: String = AppVersion.current,
         virtualDeviceName: String = "Pabulong Mic",
         settings: AppSettings,
         inputDevices: [String],

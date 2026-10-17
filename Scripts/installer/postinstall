@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+# Remove the driver from builds named "Noiseless" so only one virtual mic exists.
+/bin/rm -rf "/Library/Audio/Plug-Ins/HAL/NoiselessHALPlugin.driver"
+
+# Reload CoreAudio so the newly installed HAL plug-in appears as "Pabulong Mic".
+/usr/bin/killall coreaudiod >/dev/null 2>&1 || true
+
+exit 0

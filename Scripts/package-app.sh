@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/Scripts/common.sh"
 CONFIG="${CONFIG:-debug}"
 BIN_DIR="$ROOT/.build/arm64-apple-macosx/$CONFIG"
 if [[ ! -d "$BIN_DIR" ]]; then
@@ -27,44 +28,7 @@ cp "$ICON" "$OUT/Contents/Resources/Pabulong.icns"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$OUT/Contents/Resources/ThirdPartyNotices.md"
 cp "$ROOT/LICENSE" "$OUT/Contents/Resources/LICENSE.txt"
 
-cat > "$OUT/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleIconFile</key>
-  <string>Pabulong</string>
-  <key>CFBundleDevelopmentRegion</key>
-  <string>English</string>
-  <key>CFBundleExecutable</key>
-  <string>Pabulong</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.nextmatterpro.pabulong</string>
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
-  <key>CFBundleName</key>
-  <string>Pabulong</string>
-  <key>CFBundleDisplayName</key>
-  <string>Pabulong</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
-  <key>CFBundleVersion</key>
-  <string>1</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>14.0</string>
-  <key>LSUIElement</key>
-  <true/>
-  <key>NSMicrophoneUsageDescription</key>
-  <string>Pabulong cleans up your microphone and sends the result to the Pabulong Mic that your call app uses.</string>
-  <key>NSAudioCaptureUsageDescription</key>
-  <string>Pabulong listens to what your speakers play so it can remove that echo from your microphone. It records the other participants only if you turn on call recording. Audio stays on this Mac.</string>
-  <key>NSHumanReadableCopyright</key>
-  <string>© 2026 Next Matter Pro. MIT License. Includes RNNoise © Xiph.Org Foundation and contributors (BSD license).</string>
-</dict>
-</plist>
-PLIST
+write_app_info_plist "$OUT"
 
 # Signing.
 #   - Local/dev (default): ad-hoc signature. Unstable identity across rebuilds,
@@ -74,7 +38,6 @@ PLIST
 #   - Distribution: set SIGN_IDENTITY to "Developer ID Application: ..." and
 #     HARDENED=1 to sign with a hardened runtime, ready for notarization.
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
-ENTITLEMENTS="$ROOT/Sources/NoiselessApp/Noiseless.entitlements"
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --sign - "$OUT/Contents/Resources/PabulongHelper" >/dev/null
   codesign --force --sign - "$OUT" >/dev/null

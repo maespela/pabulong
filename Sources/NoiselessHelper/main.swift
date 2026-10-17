@@ -53,7 +53,7 @@ struct PabulongHelperMain {
         let engineProbe = NoiseProcessorFactory.make(settings: settings)
         try? engineProbe.prepare()
 
-        print("PabulongHelper 0.1.0-dev")
+        print("PabulongHelper \(AppVersion.current)")
         print("Selected input: \(selectedDevice?.name ?? "system default unavailable")")
         print("Suppression: \(settings.suppressionMode.displayName)")
         print("Processor: \(settings.processorType.displayName)")
