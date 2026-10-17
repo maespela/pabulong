@@ -1,0 +1,4 @@
+target/
+sim/out/
+# Generated with macOS system voices for local testing only — do not publish.
+sim/voices/*.wav

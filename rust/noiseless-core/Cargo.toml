@@ -1,0 +1,18 @@
+[package]
+name = "noiseless-core"
+version = "0.1.0"
+edition = "2021"
+description = "Portable real-time voice processing core for Pabulong (macOS + Windows)"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[features]
+default = []
+# Link the vendored RNNoise static library for the neural backend. Set
+# RNNOISE_LIB_DIR to the directory containing librnnoise.a (rnnoise.lib on MSVC).
+rnnoise = []
+
+[dependencies]

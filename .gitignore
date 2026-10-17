@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+.swiftpm/
+outputs/
+work/
+brag-output/
+legal/
+rust/target/
+rust/sim/voices/
+rust/sim/out/
+Sources/CNoiselessCore/lib/
+Sources/NoiselessApp/Resources/Noiseless.icns
+*.iconset/
