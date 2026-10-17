@@ -1,0 +1,16 @@
+# Windows app workspace. Separate from ../rust so the shared core's workspace
+# and lockfile stay exactly as the macOS build uses them.
+[workspace]
+resolver = "2"
+members = ["crates/pabulong-ring", "crates/pabulong", "crates/pabulong-setup"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"

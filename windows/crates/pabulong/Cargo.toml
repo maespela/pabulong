@@ -1,0 +1,47 @@
+[package]
+name = "pabulong"
+description = "Pabulong for Windows: noise-cancelling microphone tray app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "Pabulong"
+path = "src/main.rs"
+
+[features]
+default = []
+# Link RNNoise into the shared core (CI builds rnnoise.lib; see windows/scripts/build-rnnoise.ps1).
+rnnoise = ["noiseless-core/rnnoise"]
+
+[dependencies]
+noiseless-core = { path = "../../../rust/noiseless-core" }
+pabulong-ring = { path = "../pabulong-ring" }
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "=0.62.2"
+features = [
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
+    "Win32_Media_KernelStreaming",
+    "Win32_Media_Multimedia",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Performance",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+]

@@ -1,0 +1,9 @@
+[package]
+name = "pabulong-ring"
+description = "Shared-memory ring between the Pabulong app and the Pabulong Mic driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]

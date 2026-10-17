@@ -11,3 +11,8 @@ rust/sim/out/
 Sources/CNoiselessCore/lib/
 Sources/NoiselessApp/Resources/Noiseless.icns
 *.iconset/
+windows/target/
+windows/driver/packages/
+windows/driver/x64/
+windows/driver/ARM64/
+windows/out/
