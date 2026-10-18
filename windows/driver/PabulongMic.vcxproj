@@ -2,7 +2,8 @@
 <!-- Pabulong Mic: WDM/PortCls WaveRT virtual capture driver.
      Build (Developer PowerShell, after `nuget restore packages.config -PackagesDirectory packages`):
        msbuild PabulongMic.vcxproj -p:Configuration=Release -p:Platform=x64
-     Output: x64\Release\PabulongMic\ (PabulongMic.sys, PabulongMic.inf). -->
+     Output: x64\Release\PabulongMic.sys. The INF is made from src\PabulongMic.inx
+     with stampinf (see the "Catalog and test-sign" step in .github/workflows/windows.yml). -->
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
@@ -61,8 +62,9 @@
     <ClInclude Include="src\pabulong_ring.h" />
     <ClInclude Include="src\ring_read.h" />
     <ResourceCompile Include="src\PabulongMic.rc" />
-    <Inf Include="src\PabulongMic.inx" />
-    <FilesToPackage Include="$(TargetPath)" />
+    <!-- Stamped (stampinf) and checked (InfVerif) by CI from the WDK NuGet
+         package; the MSBuild Inf step cannot locate stampinf in that layout. -->
+    <None Include="src\PabulongMic.inx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

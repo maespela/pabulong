@@ -37,7 +37,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Shared core tests
         working-directory: rust
-        run: cargo test --locked
+        # noiseless-sim forces RNNoise on, and there is no Linux RNNoise build
+        # here; the core's own tests cover the spectral path.
+        run: cargo test --locked -p noiseless-core
       - name: Windows app logic tests (portable parts)
         working-directory: windows
         run: cargo test --locked
@@ -121,9 +123,11 @@ jobs:
           - arch: x64
             platform: x64
             os: 10_VB_X64
+            stamp: amd64
           - arch: arm64
             platform: ARM64
             os: 10_VB_ARM64
+            stamp: arm64
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
@@ -137,16 +141,27 @@ jobs:
         working-directory: windows/driver
         shell: pwsh
         run: |
-          # StampInf's output (.inf with $ARCH$ and DriverVer filled in).
-          $inf = Get-ChildItem -Recurse -Filter PabulongMic.inf "${{ matrix.platform }}\Release" | Select-Object -First 1
           $sys = Get-ChildItem -Recurse -Filter PabulongMic.sys "${{ matrix.platform }}\Release" | Select-Object -First 1
-          if (-not $inf -or -not $sys) { throw "PabulongMic.inf/.sys not found under ${{ matrix.platform }}\Release" }
+          if (-not $sys) { throw "PabulongMic.sys not found under ${{ matrix.platform }}\Release" }
           $out = "$env:RUNNER_TEMP\driver-${{ matrix.arch }}"
           New-Item -ItemType Directory -Force $out | Out-Null
-          Copy-Item $inf.FullName, $sys.FullName $out
-          $inf2cat = Get-ChildItem -Recurse -Filter Inf2Cat.exe packages, "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Select-Object -First 1
-          $signtool = Get-ChildItem -Recurse -Filter signtool.exe packages, "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
-          if (-not $inf2cat -or -not $signtool) { throw "Inf2Cat.exe or signtool.exe not found" }
+          Copy-Item $sys.FullName $out
+          $tool = { param($name) Get-ChildItem -Recurse -Filter $name packages -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\(arm64|ARM64|x86)\\' -or $name -eq 'Inf2Cat.exe' } | Select-Object -First 1 }
+          $stampinf = & $tool 'stampinf.exe'
+          $infverif = & $tool 'infverif.exe'
+          $inf2cat = & $tool 'Inf2Cat.exe'
+          $signtool = Get-ChildItem -Recurse -Filter signtool.exe packages -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          foreach ($t in @{stampinf=$stampinf; infverif=$infverif; inf2cat=$inf2cat; signtool=$signtool}.GetEnumerator()) {
+            if (-not $t.Value) { throw "$($t.Key) not found in the WDK/SDK NuGet packages" }
+            Write-Host "$($t.Key): $($t.Value.FullName)"
+          }
+          # .inx -> .inf: fill in $ARCH$ and DriverVer, then check it against
+          # the Windows Driver (declarative/universal) INF rules.
+          Copy-Item src\PabulongMic.inx "$out\PabulongMic.inf"
+          & $stampinf.FullName -f "$out\PabulongMic.inf" -a ${{ matrix.stamp }} -d * -v "$($env:PABULONG_VERSION).0"
+          if ($LASTEXITCODE -ne 0) { throw "stampinf failed" }
+          & $infverif.FullName /w /v "$out\PabulongMic.inf"
+          if ($LASTEXITCODE -ne 0) { throw "InfVerif failed" }
           # Throwaway test certificate: only machines in test-signing mode
           # that import it will load this driver.
           $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Pabulong Mic TEST (not for distribution)" `
