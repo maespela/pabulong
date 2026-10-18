@@ -45,8 +45,6 @@ write_app_info_plist() {
   <string>$BUILD_NUMBER</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
-  <key>LSUIElement</key>
-  <true/>
   <key>NSMicrophoneUsageDescription</key>
   <string>Pabulong cleans up your microphone and sends the result to the Pabulong Mic that your call app uses.</string>
   <key>NSAudioCaptureUsageDescription</key>

@@ -8,9 +8,34 @@ import SwiftUI
 struct NoiselessApp: App {
     @StateObject private var model = MenuBarModel()
 
+    init() {
+        BrandFonts.register()
+    }
+
     var body: some Scene {
+        // The window comes first so a launch (Pabulong is a Dock app) opens it.
+        WindowGroup("Pabulong", id: "main") {
+            NoiselessMainWindow(model: model)
+                .frame(minWidth: 980, minHeight: 640)
+                .tint(Brand.signal)
+                // Pabulong keeps its light glass look in dark mode too.
+                .preferredColorScheme(.light)
+                .onAppear {
+                    model.refreshDevices()
+                    model.refreshCalls()
+                    model.startMonitoringIfNeeded()
+                }
+                .onChange(of: model.settings) { _, _ in
+                    model.persistSettings()
+                    model.reconfigurePipeline()
+                }
+        }
+        .windowResizability(.contentMinSize)
+
         MenuBarExtra {
             MenuBarPopover(model: model)
+                .tint(Brand.signal)
+                .preferredColorScheme(.light)
         } label: {
             MenuBarStatusMark(enabled: model.enabled)
                 .accessibilityLabel("Pabulong")
@@ -23,21 +48,6 @@ struct NoiselessApp: App {
                 }
         }
         .menuBarExtraStyle(.window)
-
-        WindowGroup("Pabulong", id: "main") {
-            NoiselessMainWindow(model: model)
-                .frame(minWidth: 980, minHeight: 640)
-                .onAppear {
-                    model.refreshDevices()
-                    model.refreshCalls()
-                    model.startMonitoringIfNeeded()
-                }
-                .onChange(of: model.settings) { _, _ in
-                    model.persistSettings()
-                    model.reconfigurePipeline()
-                }
-        }
-        .windowResizability(.contentMinSize)
     }
 }
 
@@ -46,27 +56,37 @@ struct MenuBarPopover: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                PabulongAppMark(enabled: model.enabled, size: 34)
-                VStack(alignment: .leading, spacing: 2) {
+                PabulongAppMark(enabled: model.enabled, size: 32)
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Pabulong")
-                        .font(.headline)
+                        .font(BrandFonts.body(16.5, .bold))
+                        .foregroundStyle(Brand.text)
                     Text(model.enabled || model.isVirtualMicInUse ? model.virtualDeviceStatus : "Off")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(BrandFonts.body(12))
+                        .foregroundStyle(Brand.secondaryText)
                 }
                 Spacer()
                 StatusDot(active: model.enabled || model.bridgeHealth.producerAttached)
             }
+            .padding(.bottom, 10)
 
-            Toggle("Mic Processing", isOn: Binding(
-                get: { model.enabled },
-                set: { model.setProcessingEnabled($0) }
-            ))
+            HStack {
+                Text("Mic Processing")
+                    .font(BrandFonts.body(14.5))
+                    .foregroundStyle(Brand.text)
+                Spacer()
+                BrandSwitch(title: "Mic Processing", isOn: Binding(
+                    get: { model.enabled },
+                    set: { model.setProcessingEnabled($0) }
+                ))
+            }
+            .frame(height: 32)
 
             if model.isVirtualMicInUse || model.activeCall != nil {
                 RecordingControlStrip(model: model, compact: true)
+                    .padding(.top, 8)
             }
 
             if model.enabled && model.micAccessDenied {
@@ -75,45 +95,50 @@ struct MenuBarPopover: View {
                 } label: {
                     Label("Microphone Settings", systemImage: "exclamationmark.triangle.fill")
                 }
+                .buttonStyle(BrandButtonStyle(kind: .secondary, fullWidth: true))
+                .padding(.top, 8)
             }
 
             if model.virtualMicIsDefaultInput {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Pabulong Mic is your default input", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.semibold))
+                        .font(BrandFonts.body(12, .semibold))
                         .foregroundStyle(.orange)
                     Text("That keeps your mic active all the time. Use Pabulong Mic only inside your call app.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(BrandFonts.body(11))
+                        .foregroundStyle(Brand.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                     Button("Fix — switch default to a real mic") {
                         model.ensureVirtualMicIsNotDefaultInput()
                     }
-                    .controlSize(.small)
+                    .buttonStyle(BrandButtonStyle(kind: .primary, height: 26))
                 }
-                .padding(8)
+                .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.top, 8)
             }
 
-            Divider()
+            Rectangle()
+                .fill(Brand.separator)
+                .frame(height: 1)
+                .padding(.top, 11)
+                .padding(.bottom, 5)
 
-            Button {
+            PopoverLinkButton(title: "Open Pabulong", icon: .window) {
                 openWindow(id: "main")
                 NSApp.activate(ignoringOtherApps: true)
-            } label: {
-                Label("Open Pabulong", systemImage: "macwindow")
             }
             .keyboardShortcut("o")
 
-            Button {
+            PopoverLinkButton(title: "Quit", icon: .power) {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                Label("Quit", systemImage: "power")
             }
             .keyboardShortcut("q")
         }
-        .padding()
-        .frame(width: 280)
+        .padding(15)
+        .frame(width: 300)
+        .background(Brand.popoverGlass)
         .onAppear {
             model.refreshDevices()
             model.refreshCalls()
@@ -123,6 +148,29 @@ struct MenuBarPopover: View {
             model.persistSettings()
             model.reconfigurePipeline()
         }
+    }
+}
+
+/// "Open Pabulong" / "Quit" rows: line icon and label, full-width hover wash.
+struct PopoverLinkButton: View {
+    var title: String
+    var icon: BrandIcon
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                BrandIconView(icon: icon, size: 16)
+                Text(title)
+                    .font(BrandFonts.body(14))
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Brand.text)
+            .padding(.horizontal, 5)
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+        }
+        .buttonStyle(BrandPlainButtonStyle(cornerRadius: 6))
+        .padding(.horizontal, -5)
     }
 }
 
@@ -146,23 +194,27 @@ final class MenuBarModel: ObservableObject {
         guard settings.acceptedTermsVersion < Self.currentTermsVersion else { return }
         NSApp.activate(ignoringOtherApps: true)
         while true {
-            let alert = NSAlert()
-            alert.messageText = "Welcome to Pabulong"
-            alert.informativeText = """
-            Please read and agree to the Pabulong Terms of Use and Privacy Notice before you continue.
+            let choice = BrandAlert.run(
+                title: "Welcome to Pabulong",
+                message: """
+                Please read and agree to the Pabulong Terms of Use and Privacy Notice before you continue.
 
-            • Pabulong works on this Mac. It does not send your audio or recordings to anyone.
-            • If you record calls, you are bound by the recording laws where you and everyone on the call are, and you must know and follow them. Next Matter Pro does not control your recordings and is not liable for them.
-            """
-            alert.addButton(withTitle: "I Agree")
-            alert.addButton(withTitle: "Read Terms")
-            alert.addButton(withTitle: "Quit")
-            switch alert.runModal() {
-            case .alertFirstButtonReturn:
+                • Pabulong works on this Mac. It does not send your audio or recordings to anyone.
+                • If you record calls, you are bound by the recording laws where you and everyone on the call are, and you must know and follow them. Next Matter Pro does not control your recordings and is not liable for them.
+                """,
+                messageAlignment: .leading,
+                choices: [
+                    .init(title: "I Agree", kind: .primary),
+                    .init(title: "Read Terms", kind: .secondary),
+                    .init(title: "Quit", kind: .secondary, isCancel: true)
+                ]
+            )
+            switch choice {
+            case 0:
                 settings.acceptedTermsVersion = Self.currentTermsVersion
                 persistSettings()
                 return
-            case .alertSecondButtonReturn:
+            case 1:
                 NSWorkspace.shared.open(LegalLinks.terms)
                 NSWorkspace.shared.open(LegalLinks.privacy)
             default:
@@ -172,9 +224,9 @@ final class MenuBarModel: ObservableObject {
         }
     }
 
-    @Published var showRecordingConsent = false
     @Published var showingThirdPartyNotices = false
     private var afterRecordingConsent: (() -> Void)?
+    private var isPresentingRecordingConsent = false
 
     /// Runs `action` once the user has confirmed they will get consent from
     /// everyone on the call. Asks the first time only.
@@ -183,7 +235,30 @@ final class MenuBarModel: ObservableObject {
             action()
         } else {
             afterRecordingConsent = action
-            showRecordingConsent = true
+            presentRecordingConsent()
+        }
+    }
+
+    private func presentRecordingConsent() {
+        guard !isPresentingRecordingConsent else { return }
+        isPresentingRecordingConsent = true
+        // Leave the current event (a click in the popover or a switch) first.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let choice = BrandAlert.run(
+                title: "Recording laws are your responsibility",
+                message: "When you record, you are bound by the recording laws where you are and where everyone on the call is, and you need to know them. Many places, including the Philippines and several U.S. states such as California and Florida, require everyone's consent. Follow your client's or law firm's confidentiality rules too. Pabulong does not control or review your recordings, and Next Matter Pro is not liable for them. Recordings stay on this Mac.",
+                choices: [
+                    .init(title: "I Understand", kind: .primary),
+                    .init(title: "Cancel", kind: .secondary, isCancel: true)
+                ]
+            )
+            self.isPresentingRecordingConsent = false
+            if choice == 0 {
+                self.acceptRecordingConsent()
+            } else {
+                self.declineRecordingConsent()
+            }
         }
     }
 
@@ -1136,11 +1211,11 @@ enum MainAppSection: String, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
+    var icon: BrandIcon {
         switch self {
-        case .calls: "waveform.and.mic"
-        case .settings: "slider.horizontal.3"
-        case .diagnostics: "gauge.with.dots.needle.67percent"
+        case .calls: .calls
+        case .settings: .settings
+        case .diagnostics: .diagnostics
         }
     }
 }
@@ -1159,7 +1234,6 @@ final class MainWindowUIState: ObservableObject {
 final class CallsLibraryUIState: ObservableObject {
     @Published var selectedCallID: UUID?
     @Published var searchText = ""
-    @Published var pendingDelete: CallSession?
 }
 
 struct NoiselessMainWindow: View {
@@ -1168,17 +1242,18 @@ struct NoiselessMainWindow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
                 VStack(spacing: 10) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 9) {
                         if !ui.sidebarCollapsed {
-                            PabulongAppMark(enabled: model.enabled, size: 28)
-                            VStack(alignment: .leading, spacing: 1) {
+                            PabulongAppMark(enabled: model.enabled, size: 26)
+                            VStack(alignment: .leading, spacing: 0) {
                                 Text("Pabulong")
-                                    .font(.headline)
+                                    .font(BrandFonts.body(14.5, .bold))
+                                    .foregroundStyle(Brand.text)
                                 Text(model.enabled ? model.virtualDeviceStatus : "Off")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(BrandFonts.body(11.5))
+                                    .foregroundStyle(Brand.secondaryText)
                             }
                             Spacer()
                         }
@@ -1189,29 +1264,31 @@ struct NoiselessMainWindow: View {
                             }
                         } label: {
                             Image(systemName: ui.sidebarCollapsed ? "sidebar.right" : "sidebar.left")
-                                .font(.system(size: 17, weight: .semibold))
-                                .frame(width: 44, height: 44)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(Brand.secondaryText)
+                                .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(BrandPlainButtonStyle())
                         .help(ui.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
                         .accessibilityLabel(ui.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
                     }
                     .frame(maxWidth: .infinity, alignment: ui.sidebarCollapsed ? .center : .leading)
 
                     if ui.sidebarCollapsed {
-                        PabulongAppMark(enabled: model.enabled, size: 28)
+                        PabulongAppMark(enabled: model.enabled, size: 26)
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 16)
-                .padding(.bottom, 10)
+                .padding(.leading, ui.sidebarCollapsed ? 0 : 14)
+                .padding(.trailing, ui.sidebarCollapsed ? 0 : 8)
+                .padding(.top, 12)
+                .padding(.bottom, 14)
 
                 ForEach(MainAppSection.allCases) { section in
                     SidebarButton(
                         title: section.title,
-                        systemImage: section.systemImage,
+                        icon: section.icon,
                         isSelected: ui.selectedSection == section,
                         isCollapsed: ui.sidebarCollapsed
                     ) {
@@ -1223,10 +1300,10 @@ struct NoiselessMainWindow: View {
             }
             .frame(width: ui.sidebarCollapsed ? 68 : 214)
             .clipped()
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(Brand.sidebarGlass.ignoresSafeArea())
             .animation(.snappy(duration: 0.18), value: ui.sidebarCollapsed)
 
-            Divider()
+            Rectangle().fill(Brand.separator).frame(width: 1).ignoresSafeArea()
 
             Group {
                 switch ui.selectedSection {
@@ -1239,7 +1316,10 @@ struct NoiselessMainWindow: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Brand.windowGlass.ignoresSafeArea())
         }
+        .background(GlassBlur().ignoresSafeArea())
+        .foregroundStyle(Brand.text)
         .toolbar {
             ToolbarItemGroup {
                 Toggle(isOn: Binding(
@@ -1263,7 +1343,7 @@ struct NoiselessMainWindow: View {
 
 struct SidebarButton: View {
     var title: String
-    var systemImage: String
+    var icon: BrandIcon
     var isSelected: Bool
     var isCollapsed: Bool
     var action: () -> Void
@@ -1271,27 +1351,21 @@ struct SidebarButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: isCollapsed ? 0 : 10) {
-                if isCollapsed {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
-                        .frame(width: 44, height: 44)
-                } else {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                        .frame(width: 20)
+                BrandIconView(icon: icon, size: isCollapsed ? 18 : 16)
+                if !isCollapsed {
                     Text(title)
-                        .font(.callout.weight(isSelected ? .semibold : .regular))
+                        .font(BrandFonts.body(14, isSelected ? .medium : .regular))
                     Spacer(minLength: 0)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 48, alignment: isCollapsed ? .center : .leading)
-            .padding(.horizontal, isCollapsed ? 0 : 12)
-            .background(isSelected ? Color.accentColor.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .foregroundStyle(Brand.text)
+            .frame(maxWidth: .infinity, minHeight: isCollapsed ? 40 : 34, alignment: isCollapsed ? .center : .leading)
+            .padding(.horizontal, isCollapsed ? 0 : 10)
+            .background(isSelected ? Brand.sidebarSelection : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .contentShape(Rectangle())
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 10)
+        .buttonStyle(BrandPlainButtonStyle())
+        .padding(.horizontal, 8)
         .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -1319,66 +1393,73 @@ struct CallsLibraryView: View {
         return model.calls.first { $0.id == selectedCallID } ?? filteredCalls.first
     }
 
+    private var visibleCalls: [(call: CallSession, isActive: Bool)] {
+        var rows: [(CallSession, Bool)] = []
+        if let activeCall = model.activeCall {
+            rows.append((activeCall, true))
+        }
+        rows += filteredCalls.filter { $0.id != model.activeCall?.id }.map { ($0, false) }
+        return rows
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 LibraryHeader(
                     title: "Calls",
                     subtitle: "\(model.calls.count) saved",
-                    systemImage: "waveform.and.mic"
+                    icon: .calls
                 )
 
-                TextField("Search calls", text: $ui.searchText)
-                    .textFieldStyle(.roundedBorder)
+                BrandSearchField(placeholder: "Search calls", text: $ui.searchText)
                     .padding(.horizontal, 14)
-                    .padding(.bottom, model.isVirtualMicInUse || model.activeCall != nil ? 8 : 14)
+                    .padding(.bottom, model.isVirtualMicInUse || model.activeCall != nil ? 10 : 12)
 
                 if model.isVirtualMicInUse || model.activeCall != nil {
                     RecordingControlStrip(model: model, compact: false)
                         .padding(.horizontal, 14)
-                        .padding(.bottom, 14)
+                        .padding(.bottom, 12)
                 }
 
                 if model.activeCall == nil && filteredCalls.isEmpty {
                     EmptyCallList()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List(selection: $ui.selectedCallID) {
-                        if let activeCall = model.activeCall {
-                            CallRow(call: activeCall, model: model, isActive: true)
-                                .tag(activeCall.id)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    ui.selectedCallID = activeCall.id
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(visibleCalls, id: \.call.id) { row in
+                                Button {
+                                    ui.selectedCallID = row.call.id
+                                } label: {
+                                    CallRow(call: row.call, model: model, isActive: row.isActive)
+                                        .padding(.horizontal, 10)
+                                        .background(
+                                            selectedCall?.id == row.call.id ? Brand.sidebarSelection : Color.clear,
+                                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        )
                                 }
+                                .buttonStyle(BrandPlainButtonStyle(cornerRadius: 8))
+                                .accessibilityAddTraits(selectedCall?.id == row.call.id ? .isSelected : [])
+                            }
                         }
-                        ForEach(filteredCalls.filter { $0.id != model.activeCall?.id }) { call in
-                            CallRow(call: call, model: model, isActive: call.id == model.activeCall?.id)
-                                .tag(call.id)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    ui.selectedCallID = call.id
-                                }
-                        }
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 10)
                     }
-                    .listStyle(.sidebar)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .frame(width: 340)
-            .background(Color(nsColor: .controlBackgroundColor))
 
-            Divider()
+            Rectangle().fill(Brand.separator).frame(width: 1)
 
             CallDetailView(
                 model: model,
                 call: selectedCall,
-                pendingDelete: $ui.pendingDelete
+                onDelete: confirmDelete
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
         .onAppear {
             model.refreshCalls()
             ui.selectedCallID = ui.selectedCallID ?? model.activeCall?.id ?? model.calls.first?.id
@@ -1393,60 +1474,81 @@ struct CallsLibraryView: View {
                 ui.selectedCallID = activeCall.id
             }
         }
-        .confirmationDialog(
-            "Delete call?",
-            isPresented: Binding(
-                get: { ui.pendingDelete != nil },
-                set: { if !$0 { ui.pendingDelete = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                if let pendingDelete = ui.pendingDelete {
-                    model.deleteCall(pendingDelete)
-                    ui.selectedCallID = nil
-                }
-                ui.pendingDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                ui.pendingDelete = nil
+    }
+
+    private func confirmDelete(_ call: CallSession) {
+        DispatchQueue.main.async {
+            let choice = BrandAlert.run(
+                title: "Delete call?",
+                message: nil,
+                choices: [
+                    .init(title: "Delete", kind: .destructive),
+                    .init(title: "Cancel", kind: .secondary, isCancel: true)
+                ]
+            )
+            if choice == 0 {
+                model.deleteCall(call)
+                ui.selectedCallID = nil
             }
         }
+    }
+}
+
+struct BrandSearchField: View {
+    var placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Brand.secondaryText)
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(BrandFonts.body(13))
+                .foregroundStyle(Brand.text)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 30)
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.cardStroke))
     }
 }
 
 struct CallDetailView: View {
     @ObservedObject var model: MenuBarModel
     var call: CallSession?
-    @Binding var pendingDelete: CallSession?
+    var onDelete: (CallSession) -> Void
+
     var body: some View {
         Group {
             if let call {
-                VStack(alignment: .leading, spacing: 0) {
-                    CallDetailHeader(model: model, call: call, pendingDelete: $pendingDelete)
-                    Divider()
-                    FilesPane(model: model, call: call)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        CallDetailHeader(model: model, call: call, onDelete: onDelete)
+                        FilesPane(model: model, call: call)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
                 NoCallDetailPlaceholder()
             }
         }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 }
 
 struct EmptyCallList: View {
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "waveform.and.mic")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(.secondary)
+            BrandIconView(icon: .calls, size: 30)
+                .foregroundStyle(Brand.secondaryText)
             Text("No Calls")
-                .font(.headline)
+                .font(BrandFonts.display(15))
+                .foregroundStyle(Brand.text)
             Text("Recordings will appear here.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(BrandFonts.body(12))
+                .foregroundStyle(Brand.secondaryText)
         }
         .multilineTextAlignment(.center)
         .padding(24)
@@ -1457,19 +1559,22 @@ struct NoCallDetailPlaceholder: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "waveform")
-                .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(Brand.secondaryText)
             Text("Select a Call")
-                .font(.title3.weight(.semibold))
+                .font(BrandFonts.display(18))
+                .foregroundStyle(Brand.text)
             Text("Recordings and audio files open here.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(BrandFonts.body(13))
+                .foregroundStyle(Brand.secondaryText)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+/// The rounded recording strip: blue ring icon, title and status, and the
+/// record button (red stop while recording).
 struct RecordingControlStrip: View {
     @ObservedObject var model: MenuBarModel
     var compact: Bool
@@ -1479,25 +1584,24 @@ struct RecordingControlStrip: View {
     }
 
     var body: some View {
-        HStack(spacing: compact ? 8 : 12) {
-            Image(systemName: isRecording ? "record.circle.fill" : "record.circle")
-                .font(.system(size: compact ? 20 : 24, weight: .semibold))
-                .foregroundStyle(isRecording ? Color.red : Color.accentColor)
-                .frame(width: compact ? 28 : 34, height: compact ? 28 : 34)
+        HStack(spacing: compact ? 9 : 11) {
+            BrandIconView(icon: .record, size: compact ? 22 : 26)
+                .foregroundStyle(isRecording ? Color(nsColor: .systemRed) : Brand.accentInk)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(model.recordingControlTitle)
-                    .font(compact ? .caption.weight(.semibold) : .callout.weight(.semibold))
+                    .font(BrandFonts.body(compact ? 12.5 : 13.5, .bold))
+                    .foregroundStyle(Brand.text)
                     .lineLimit(1)
                 Text(model.recordingControlSubtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(BrandFonts.body(compact ? 11 : 11.5))
+                    .foregroundStyle(Brand.secondaryText)
                     .lineLimit(1)
             }
 
             Spacer(minLength: 8)
 
-            Button(role: isRecording ? .destructive : nil) {
+            Button {
                 if isRecording {
                     model.stopActiveCall()
                 } else {
@@ -1505,58 +1609,83 @@ struct RecordingControlStrip: View {
                 }
             } label: {
                 if compact {
-                    Image(systemName: isRecording ? "stop.fill" : "record.circle")
-                        .frame(minWidth: 44, minHeight: 34)
+                    Group {
+                        if isRecording {
+                            Image(systemName: "stop.fill").font(.system(size: 11, weight: .bold))
+                        } else {
+                            BrandIconView(icon: .record, size: 17)
+                        }
+                    }
+                    .frame(width: 38, height: 29)
                 } else {
-                    Label(isRecording ? "Stop" : "Record", systemImage: isRecording ? "stop.fill" : "record.circle")
-                        .frame(minWidth: 92, minHeight: 34)
+                    HStack(spacing: 6) {
+                        if isRecording {
+                            Image(systemName: "stop.fill").font(.system(size: 10, weight: .bold))
+                        } else {
+                            BrandIconView(icon: .record, size: 15)
+                        }
+                        Text(isRecording ? "Stop" : "Record")
+                    }
+                    .frame(minWidth: 64)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(compact ? .small : .regular)
-            .tint(isRecording ? .red : .accentColor)
+            .buttonStyle(BrandButtonStyle(kind: isRecording ? .destructive : .primary, height: compact ? 29 : 30))
             .disabled(!isRecording && !model.canStartManualRecording)
             .help(isRecording ? "Stop recording" : "Start recording")
             .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
         }
-        .padding(.horizontal, compact ? 10 : 12)
-        .padding(.vertical, compact ? 8 : 10)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .modifier(RecordingConsentAlert(model: model))
+        .padding(.horizontal, compact ? 9 : 11)
+        .padding(.vertical, compact ? 7 : 9)
+        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
 struct CallDetailHeader: View {
     @ObservedObject var model: MenuBarModel
     var call: CallSession
-    @Binding var pendingDelete: CallSession?
+    var onDelete: (CallSession) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 16) {
-                Image(systemName: call.status == .recording ? "record.circle.fill" : "waveform.circle.fill")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(call.status == .recording ? Color.red : Color.accentColor)
-                    .frame(width: 44, height: 44)
+            HStack(alignment: .top, spacing: 14) {
+                Group {
+                    if call.status == .recording {
+                        BrandIconView(icon: .record, size: 24)
+                            .foregroundStyle(Color(nsColor: .systemRed))
+                    } else {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Brand.accentInk)
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(call.title)
-                        .font(.title2.weight(.semibold))
-                        .lineLimit(1)
-                    HStack(spacing: 8) {
-                        StatusPill(text: call.status.rawValue.capitalized, systemImage: "circle.fill")
+                        .font(BrandFonts.display(20))
+                        .foregroundStyle(Brand.text)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 12) {
+                        StatusPill(
+                            text: call.status.rawValue.capitalized,
+                            systemImage: "circle.fill",
+                            tint: call.status == .recording ? Color(nsColor: .systemRed) : Brand.secondaryText
+                        )
                         if call.remoteAudioMissing {
                             StatusPill(text: "Mic Only", systemImage: "mic.fill")
                         }
                     }
                     Text("\(model.callDateText(call)) at \(model.callTimeText(call)) · \(model.callDurationText(call))")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(BrandFonts.body(13))
+                        .foregroundStyle(Brand.secondaryText)
                 }
 
                 Spacer()
 
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     if call.status == .recording {
                         HeaderIconButton(title: "Stop Recording", systemImage: "stop.circle.fill", role: .destructive) {
                             model.stopActiveCall()
@@ -1578,7 +1707,7 @@ struct CallDetailHeader: View {
                         model.revealCall(call)
                     }
                     HeaderIconButton(title: "Delete", systemImage: "trash", role: .destructive) {
-                        pendingDelete = call
+                        onDelete(call)
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)
@@ -1590,12 +1719,10 @@ struct CallDetailHeader: View {
 
             if !model.callStatusMessage.isEmpty {
                 Text(model.callStatusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(BrandFonts.body(12))
+                    .foregroundStyle(Brand.secondaryText)
             }
         }
-        .padding(20)
-        .background(.regularMaterial)
     }
 }
 
@@ -1610,21 +1737,21 @@ struct PlaybackStrip: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: model.playbackIsPlaying ? "speaker.wave.2.fill" : "pause.circle")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Brand.secondaryText)
                 .frame(width: 18)
             SeekablePlaybackBar(progress: progress) { newProgress in
                 model.seekPlayback(to: newProgress)
             }
             .frame(maxWidth: 280)
             Text(model.playbackTimeText())
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(BrandFonts.body(12).monospacedDigit())
+                .foregroundStyle(Brand.secondaryText)
                 .frame(width: 82, alignment: .trailing)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Playback \(model.playbackTimeText())")
     }
@@ -1635,22 +1762,25 @@ struct SeekablePlaybackBar: View {
     let onSeek: (Double) -> Void
 
     var body: some View {
-        ProgressView(value: progress)
-            .progressViewStyle(.linear)
-            .overlay {
-                GeometryReader { proxy in
-                    Rectangle()
-                        .fill(.clear)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onEnded { value in
-                                    let width = max(proxy.size.width, 1)
-                                    onSeek(Double(value.location.x / width))
-                                }
-                        )
-                }
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Brand.meterTrack)
+                Capsule()
+                    .fill(Brand.signal)
+                    .frame(width: max(5, proxy.size.width * progress))
             }
+            .frame(height: 5)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { value in
+                        let width = max(proxy.size.width, 1)
+                        onSeek(Double(value.location.x / width))
+                    }
+            )
+        }
+        .frame(height: 14)
     }
 }
 
@@ -1659,43 +1789,26 @@ struct FilesPane: View {
     var call: CallSession
 
     var body: some View {
-        Form {
-            Section("Audio") {
+        VStack(alignment: .leading, spacing: 14) {
+            BrandSection(title: "Audio") {
                 FilePathRow(title: "Local Mic", path: call.localMicAudioPath, size: model.callFileSizeText(path: call.localMicAudioPath))
                 FilePathRow(title: "Remote Audio", path: call.remoteSystemAudioPath, size: model.callFileSizeText(path: call.remoteSystemAudioPath))
-                FilePathRow(title: "Mixed Preview", path: call.mixedPreviewAudioPath, size: model.callFileSizeText(path: call.mixedPreviewAudioPath))
+                FilePathRow(title: "Mixed Preview", path: call.mixedPreviewAudioPath, size: model.callFileSizeText(path: call.mixedPreviewAudioPath), showsDivider: false)
             }
-            Section {
-                Button {
-                    model.revealCall(call)
-                } label: {
-                    Label("Reveal in Finder", systemImage: "folder")
-                }
+            Button {
+                model.revealCall(call)
+            } label: {
+                Label("Reveal in Finder", systemImage: "folder")
             }
+            .buttonStyle(BrandButtonStyle(kind: .secondary))
         }
-        .formStyle(.grouped)
-        .padding(20)
+        .frame(maxWidth: 720, alignment: .leading)
     }
 }
 
 enum LegalLinks {
     static let privacy = URL(string: "https://nextmatterpro.com/training/pabulong-privacy.php")!
     static let terms = URL(string: "https://nextmatterpro.com/training/pabulong-terms.php")!
-}
-
-/// Asks once, before the first recording, for the user to confirm they will get
-/// consent from everyone on the call.
-struct RecordingConsentAlert: ViewModifier {
-    @ObservedObject var model: MenuBarModel
-
-    func body(content: Content) -> some View {
-        content.alert("Recording laws are your responsibility", isPresented: $model.showRecordingConsent) {
-            Button("I Understand") { model.acceptRecordingConsent() }
-            Button("Cancel", role: .cancel) { model.declineRecordingConsent() }
-        } message: {
-            Text("When you record, you are bound by the recording laws where you are and where everyone on the call is, and you need to know them. Many places, including the Philippines and several U.S. states such as California and Florida, require everyone's consent. Follow your client's or law firm's confidentiality rules too. Pabulong does not control or review your recordings, and Next Matter Pro is not liable for them. Recordings stay on this Mac.")
-        }
-    }
 }
 
 /// Bundled third-party license notices (required by RNNoise's BSD license).
@@ -1712,122 +1825,183 @@ struct ThirdPartyNoticesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Third-Party Notices").font(.title2.weight(.semibold))
+            Text("Third-Party Notices")
+                .font(BrandFonts.display(18))
+                .foregroundStyle(Brand.text)
             ScrollView {
                 Text(text)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Brand.text)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
             }
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(BrandButtonStyle(kind: .primary))
             }
         }
         .padding(20)
         .frame(width: 560, height: 520)
+        .background(Brand.window)
     }
 }
 
 struct AppSettingsView: View {
     @ObservedObject var model: MenuBarModel
 
+    private var microphoneLabel: String {
+        guard let uid = model.settings.selectedInputDeviceUID else { return "System Default" }
+        guard let device = model.devices.first(where: { $0.uid == uid }) else { return "" }
+        return device.isDefault ? "\(device.name) (Default)" : device.name
+    }
+
     var body: some View {
-        Form {
-            Section("Audio") {
-                Toggle("Mic Processing", isOn: Binding(
-                    get: { model.enabled },
-                    set: { model.setProcessingEnabled($0) }
-                ))
-                Picker("Microphone", selection: $model.settings.selectedInputDeviceUID) {
-                    Text("System Default").tag(String?.none)
-                    ForEach(model.devices) { device in
-                        Text(device.isDefault ? "\(device.name) (Default)" : device.name)
-                            .tag(Optional(device.uid))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                BrandSection(title: "Audio") {
+                    BrandRow(title: "Mic Processing") {
+                        BrandSwitch(title: "Mic Processing", isOn: Binding(
+                            get: { model.enabled },
+                            set: { model.setProcessingEnabled($0) }
+                        ))
                     }
-                }
-                Picker("Suppression", selection: $model.settings.suppressionMode) {
-                    ForEach(SuppressionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                if NoiseProcessorFactory.usesSharedCore {
-                    Toggle("Echo Cancellation", isOn: $model.settings.echoCancellationEnabled)
-                    Text("Removes the other person's voice from your mic when you use speakers instead of headphones.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Picker("Background Voices", selection: $model.settings.voiceIsolation) {
-                        ForEach(VoiceIsolationLevel.allCases, id: \.self) { level in
-                            Text(level.displayName).tag(level)
+                    BrandRow(title: "Microphone") {
+                        BrandPopUp(title: "Microphone", selection: $model.settings.selectedInputDeviceUID, valueLabel: microphoneLabel) {
+                            Text("System Default").tag(String?.none)
+                            ForEach(model.devices) { device in
+                                Text(device.isDefault ? "\(device.name) (Default)" : device.name)
+                                    .tag(Optional(device.uid))
+                            }
                         }
                     }
-                    Text("Turns down people talking near you who aren't on the call. Strong also trims your own softest speech.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Toggle("Bypass", isOn: $model.settings.bypassEnabled)
-            }
-
-            Section("Recording") {
-                Toggle("Automatic Call Recording", isOn: Binding(
-                    get: { model.settings.automaticCallRecordingEnabled },
-                    set: { on in
-                        if on {
-                            model.withRecordingConsent { model.settings.automaticCallRecordingEnabled = true }
-                        } else {
-                            model.settings.automaticCallRecordingEnabled = false
+                    BrandRow(title: "Suppression") {
+                        BrandPopUp(title: "Suppression", selection: $model.settings.suppressionMode, valueLabel: model.settings.suppressionMode.displayName) {
+                            ForEach(SuppressionMode.allCases, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
                         }
                     }
-                ))
-                if model.settings.automaticCallRecordingEnabled && !model.settings.recordingConsentAcknowledged {
-                    HStack {
-                        Text("Paused until you confirm recording consent.")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        Spacer()
-                        Button("Review") { model.withRecordingConsent {} }
+                    if NoiseProcessorFactory.usesSharedCore {
+                        BrandRow(
+                            title: "Echo Cancellation",
+                            caption: "Removes the other person's voice from your mic when you use speakers instead of headphones."
+                        ) {
+                            BrandSwitch(title: "Echo Cancellation", isOn: $model.settings.echoCancellationEnabled)
+                        }
+                        BrandRow(
+                            title: "Background Voices",
+                            caption: "Turns down people talking near you who aren't on the call. Strong also trims your own softest speech."
+                        ) {
+                            BrandPopUp(title: "Background Voices", selection: $model.settings.voiceIsolation, valueLabel: model.settings.voiceIsolation.displayName) {
+                                ForEach(VoiceIsolationLevel.allCases, id: \.self) { level in
+                                    Text(level.displayName).tag(level)
+                                }
+                            }
+                        }
+                    }
+                    BrandRow(title: "Bypass", showsDivider: false) {
+                        BrandSwitch(title: "Bypass", isOn: $model.settings.bypassEnabled)
                     }
                 }
-                Toggle("Local Recording", isOn: $model.settings.localRecordingEnabled)
-                Toggle("Capture System Audio", isOn: $model.settings.captureSystemAudioEnabled)
-                if model.settings.captureSystemAudioEnabled {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.green)
-                        Text("Captures the other side of the call via Core Audio — no Screen Recording permission needed.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
+
+                BrandSection(title: "Recording") {
+                    BrandRow(title: "Automatic Call Recording") {
+                        BrandSwitch(title: "Automatic Call Recording", isOn: Binding(
+                            get: { model.settings.automaticCallRecordingEnabled },
+                            set: { on in
+                                if on {
+                                    model.withRecordingConsent { model.settings.automaticCallRecordingEnabled = true }
+                                } else {
+                                    model.settings.automaticCallRecordingEnabled = false
+                                }
+                            }
+                        ))
+                    }
+                    if model.settings.automaticCallRecordingEnabled && !model.settings.recordingConsentAcknowledged {
+                        BrandCustomRow {
+                            HStack {
+                                Text("Paused until you confirm recording consent.")
+                                    .font(BrandFonts.body(12))
+                                    .foregroundStyle(.orange)
+                                Spacer()
+                                Button("Review") { model.withRecordingConsent {} }
+                                    .buttonStyle(BrandButtonStyle(kind: .secondary, height: 26))
+                            }
+                        }
+                    }
+                    BrandRow(title: "Local Recording") {
+                        BrandSwitch(title: "Local Recording", isOn: $model.settings.localRecordingEnabled)
+                    }
+                    BrandRow(title: "Capture System Audio") {
+                        BrandSwitch(title: "Capture System Audio", isOn: $model.settings.captureSystemAudioEnabled)
+                    }
+                    if model.settings.captureSystemAudioEnabled {
+                        BrandCustomRow {
+                            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Brand.live)
+                                Text("Captures the other side of the call via Core Audio — no Screen Recording permission needed.")
+                                    .font(BrandFonts.body(11.5))
+                                    .foregroundStyle(Brand.secondaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    BrandCustomRow(showsDivider: false) {
+                        Button {
+                            model.revealCallsFolder()
+                        } label: {
+                            Label("Open Call Storage", systemImage: "folder")
+                                .font(BrandFonts.body(13.5, .medium))
+                                .foregroundStyle(Brand.accentInk)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                Button {
-                    model.revealCallsFolder()
-                } label: {
-                    Label("Open Call Storage", systemImage: "folder")
+
+                BrandSection(title: "System") {
+                    BrandRow(title: "Launch at Login", showsDivider: false) {
+                        BrandSwitch(title: "Launch at Login", isOn: $model.settings.launchAtLogin)
+                    }
+                }
+
+                BrandSection(title: "About") {
+                    BrandRow(title: "Version") {
+                        Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")
+                            .font(BrandFonts.body(13.5))
+                            .foregroundStyle(Brand.secondaryText)
+                    }
+                    BrandCustomRow {
+                        Text("© 2026 Next Matter Pro. Open source under the MIT License.")
+                            .font(BrandFonts.body(12))
+                            .foregroundStyle(Brand.secondaryText)
+                    }
+                    BrandCustomRow(showsDivider: false) {
+                        HStack(spacing: 18) {
+                            Link("Privacy Notice", destination: LegalLinks.privacy)
+                            Link("Terms of Use", destination: LegalLinks.terms)
+                            Button("Third-Party Notices") { model.showingThirdPartyNotices = true }
+                                .buttonStyle(.plain)
+                        }
+                        .font(BrandFonts.body(13, .medium))
+                        .foregroundStyle(Brand.accentInk)
+                        .tint(Brand.accentInk)
+                    }
                 }
             }
-
-            Section("System") {
-                Toggle("Launch at Login", isOn: $model.settings.launchAtLogin)
-            }
-
-            Section("About") {
-                LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")
-                Text("© 2026 Next Matter Pro. Open source under the MIT License.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 14) {
-                    Link("Privacy Notice", destination: LegalLinks.privacy)
-                    Link("Terms of Use", destination: LegalLinks.terms)
-                    Button("Third-Party Notices") { model.showingThirdPartyNotices = true }
-                }
-            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .formStyle(.grouped)
-        .padding(24)
         .navigationTitle("Settings")
-        .modifier(RecordingConsentAlert(model: model))
-        .sheet(isPresented: $model.showingThirdPartyNotices) { ThirdPartyNoticesView() }
+        .sheet(isPresented: $model.showingThirdPartyNotices) { ThirdPartyNoticesView().preferredColorScheme(.light) }
     }
 }
 
@@ -1837,9 +2011,10 @@ struct DiagnosticsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                LibraryHeader(title: "Diagnostics", subtitle: model.virtualDeviceStatus, systemImage: "gauge.with.dots.needle.67percent")
+                LibraryHeader(title: "Diagnostics", subtitle: model.virtualDeviceStatus, icon: .diagnostics)
+                    .padding(.horizontal, -14)
 
-                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 14) {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 14) {
                     GridRow {
                         MetricTile(title: "Input", value: model.processorMetrics.inputRMS)
                         MetricTile(title: "Output", value: model.processorMetrics.outputRMS)
@@ -1871,14 +2046,16 @@ struct DiagnosticsView: View {
                         } label: {
                             Label(model.echoTestRunning ? "Testing…" : "Run Speaker Echo Test", systemImage: "speaker.wave.3")
                         }
+                        .buttonStyle(BrandButtonStyle(kind: .primary))
                         .disabled(model.echoTestRunning)
                         Text(model.echoTestStatus.isEmpty
                              ? "Plays a sentence through your speakers (no headphones) and measures how much of it Pabulong removes from your mic. Not available during a call."
                              : model.echoTestStatus)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(BrandFonts.body(11.5))
+                            .foregroundStyle(Brand.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: 674, alignment: .leading)
                 }
 
                 HStack(spacing: 10) {
@@ -1894,8 +2071,10 @@ struct DiagnosticsView: View {
                         Label("Export Diagnostics", systemImage: "square.and.arrow.up")
                     }
                 }
+                .buttonStyle(BrandButtonStyle(kind: .secondary))
             }
-            .padding(24)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 12)
             .frame(maxWidth: 760, alignment: .leading)
         }
         .navigationTitle("Diagnostics")
@@ -1905,21 +2084,22 @@ struct DiagnosticsView: View {
 struct LibraryHeader: View {
     var title: String
     var subtitle: String
-    var systemImage: String
+    var icon: BrandIcon
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 38, height: 38)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 11) {
+            BrandIconView(icon: icon, size: 18)
+                .foregroundStyle(Brand.accentInk)
+                .frame(width: 34, height: 34)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.cardStroke))
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.title3.weight(.semibold))
+                    .font(BrandFonts.display(17))
+                    .foregroundStyle(Brand.text)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(BrandFonts.body(12))
+                    .foregroundStyle(Brand.secondaryText)
             }
             Spacer()
         }
@@ -1933,22 +2113,31 @@ struct CallRow: View {
     var isActive: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: isActive ? "record.circle.fill" : "waveform")
-                    .foregroundStyle(isActive ? .red : .secondary)
-                    .frame(width: 18)
+        HStack(alignment: .top, spacing: 9) {
+            Group {
+                if isActive {
+                    BrandIconView(icon: .record, size: 15)
+                        .foregroundStyle(Color(nsColor: .systemRed))
+                } else {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Brand.secondaryText)
+                }
+            }
+            .frame(width: 18, height: 18)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(call.title)
-                    .font(.callout.weight(.semibold))
+                    .font(BrandFonts.body(13.5, .semibold))
+                    .foregroundStyle(Brand.text)
+                    .lineLimit(1)
+                Text("\(model.callDateText(call)) · \(model.callDurationText(call))")
+                    .font(BrandFonts.body(12))
+                    .foregroundStyle(Brand.secondaryText)
                     .lineLimit(1)
             }
-            Text("\(model.callDateText(call)) · \(model.callDurationText(call))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -1978,11 +2167,12 @@ struct HeaderIconButton: View {
     var body: some View {
         Button(role: role, action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 34, height: 34)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(role == .destructive ? Color(nsColor: .systemRed) : Brand.text)
+                .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(BrandPlainButtonStyle())
         .disabled(isDisabled)
         .help(title)
         .accessibilityLabel(title)
@@ -1993,19 +2183,22 @@ struct FilePathRow: View {
     var title: String
     var path: String?
     var size: String
+    var showsDivider = true
 
     var body: some View {
-        LabeledContent(title) {
+        BrandRow(title: title, showsDivider: showsDivider) {
             VStack(alignment: .trailing, spacing: 3) {
                 Text(size)
-                    .foregroundStyle(.secondary)
+                    .font(BrandFonts.body(13))
+                    .foregroundStyle(Brand.secondaryText)
                 Text(path ?? "Missing")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(Brand.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
             }
+            .frame(maxWidth: 380, alignment: .trailing)
         }
     }
 }
@@ -2017,16 +2210,18 @@ struct MetricTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.headline)
+                .font(BrandFonts.body(14, .semibold))
+                .foregroundStyle(Brand.text)
             LevelMeter(value: value)
                 .frame(width: 240)
             Text(String(format: "%.3f", value))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(BrandFonts.body(11.5).monospacedDigit())
+                .foregroundStyle(Brand.secondaryText)
         }
         .padding(14)
         .frame(width: 330, alignment: .leading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
     }
 }
 
@@ -2038,42 +2233,45 @@ struct InfoTile: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 34, height: 34)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(Brand.accentInk)
+                .frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(BrandFonts.body(11.5))
+                    .foregroundStyle(Brand.secondaryText)
                 Text(value)
-                    .font(.headline)
+                    .font(BrandFonts.body(14, .semibold))
+                    .foregroundStyle(Brand.text)
                     .lineLimit(1)
             }
             Spacer()
         }
         .padding(14)
         .frame(width: 330, alignment: .leading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
     }
 }
 
+/// Small status label (dot or glyph plus text), no capsule.
 struct StatusPill: View {
     var text: String
     var systemImage: String
+    var tint: Color = Brand.secondaryText
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Image(systemName: systemImage)
-                .font(.system(size: 7, weight: .bold))
+                .font(.system(size: systemImage == "circle.fill" ? 6 : 10, weight: .bold))
+                .foregroundStyle(tint)
             Text(text)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.quaternary, in: Capsule())
-            .fixedSize(horizontal: false, vertical: true)
+        .font(BrandFonts.body(12, .semibold))
+        .foregroundStyle(Brand.secondaryText)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -2082,7 +2280,7 @@ struct StatusDot: View {
 
     var body: some View {
         Circle()
-            .fill(active ? Color.green : Color.secondary.opacity(0.45))
+            .fill(active ? Brand.live : Brand.secondaryText.opacity(0.45))
             .frame(width: 9, height: 9)
             .accessibilityLabel(active ? "Active" : "Inactive")
     }
@@ -2094,9 +2292,9 @@ struct LevelMeter: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(.secondary.opacity(0.18))
+                Capsule().fill(Brand.meterTrack)
                 Capsule()
-                    .fill(value > 0.04 ? .green : .secondary)
+                    .fill(value > 0.04 ? Brand.signal : Brand.secondaryText.opacity(0.6))
                     .frame(width: max(4, proxy.size.width * CGFloat(min(value * 12, 1))))
             }
         }

@@ -89,6 +89,9 @@ if [[ ! -f "$ICON" ]]; then
   swift "$ROOT/Scripts/generate-app-icon.swift" >/dev/null
 fi
 cp "$ICON" "$APP/Contents/Resources/Pabulong.icns"
+# Brand fonts (SIL OFL 1.1, notices in THIRD_PARTY_NOTICES.md), registered at launch.
+mkdir -p "$APP/Contents/Resources/Fonts"
+cp "$APP_RESOURCES/Fonts/"*.ttf "$APP/Contents/Resources/Fonts/"
 # Third-party licenses: RNNoise (BSD-3-Clause) requires its full notice with binaries.
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/ThirdPartyNotices.md"
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE.txt"

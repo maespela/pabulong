@@ -24,6 +24,9 @@ if [[ ! -f "$ICON" ]]; then
   swift "$ROOT/Scripts/generate-app-icon.swift" >/dev/null
 fi
 cp "$ICON" "$OUT/Contents/Resources/Pabulong.icns"
+# Brand fonts (SIL OFL 1.1, notices in THIRD_PARTY_NOTICES.md), registered at launch.
+mkdir -p "$OUT/Contents/Resources/Fonts"
+cp "$ROOT/Sources/NoiselessApp/Resources/Fonts/"*.ttf "$OUT/Contents/Resources/Fonts/"
 # Third-party licenses (RNNoise BSD-3-Clause requires its notice to ship with binaries).
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$OUT/Contents/Resources/ThirdPartyNotices.md"
 cp "$ROOT/LICENSE" "$OUT/Contents/Resources/LICENSE.txt"
