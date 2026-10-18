@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Pabulong</title>
+    <link>https://vastarterhub.com/pabulong/</link>
+    <description>Pabulong for Mac updates</description>
+    <language>en</language>
+    <item>
+      <title>Pabulong 0.1.3</title>
+      <pubDate>Sun, 18 Oct 2026 05:22:56 GMT</pubDate>
+      <sparkle:version>0.1.3</sparkle:version>
+      <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+      <description><![CDATA[
+      <ul>
+        <li>Pabulong can now check for updates and install them for you. Automatic checks stay off until you turn them on.</li>
+        <li>Installing an update also updates the Pabulong Mic driver, so your Mac asks for your password.</li>
+      </ul>
+      ]]></description>
+      <enclosure url="https://vastarterhub.com/downloads/pabulong/Pabulong-0.1.3-arm64.pkg" length="8390181" type="application/octet-stream"
+                 sparkle:installationType="package" sparkle:edSignature="sWjMzyfQqR8rZr01rUlyAjOli5oEjvYaycYEex9he+PgT7xh+srVyHZVpiqS+r9mfvVASYeswDb9XvVDNkFIBw=="/>
+    </item>
+  </channel>
+</rss>
+<!-- sparkle-signatures:
+edSignature: 2JzSA0Dzc5VbGFlkuuRfQWQRvCgNmlcDM/cqFDyuhINQIq0kOWjFhSRkkU4uB+MqZveODfw8Pj/64cjC84DDDw==
+length: 1320
+-->

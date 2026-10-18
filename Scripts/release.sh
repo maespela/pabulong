@@ -34,7 +34,10 @@ if [[ -f "$APPCAST" ]] && grep -qF "<sparkle:shortVersionString>$NEW_VERSION<" "
   echo "ERROR: $NEW_VERSION is already in $APPCAST. Pick a new version." >&2
   exit 1
 fi
-LATEST="$(sed -n 's/.*<sparkle:shortVersionString>\(.*\)<.*/\1/p' "$APPCAST" 2>/dev/null | head -1)"
+LATEST=""
+if [[ -f "$APPCAST" ]]; then
+  LATEST="$(sed -n 's/.*<sparkle:shortVersionString>\(.*\)<.*/\1/p' "$APPCAST" | head -1)"
+fi
 if [[ -n "$LATEST" ]] && [[ "$(printf '%s\n%s\n' "$LATEST" "$NEW_VERSION" | sort -V | tail -1)" != "$NEW_VERSION" ]]; then
   echo "ERROR: $NEW_VERSION is not newer than $LATEST, the latest version in the feed." >&2
   exit 1
