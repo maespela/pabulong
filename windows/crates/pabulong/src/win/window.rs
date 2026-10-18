@@ -120,7 +120,10 @@ pub fn paint(hwnd: HWND) -> bool {
 /// What the window shows; built by `app` from the controller each tick.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ViewModel {
+    /// Sidebar: the virtual mic status, or "Off".
     pub status: String,
+    /// Diagnostics header: always the virtual mic status.
+    pub virtual_status: String,
     pub processing_on: bool,
     // Recording strip
     pub recording_title: String,
@@ -651,7 +654,7 @@ impl MainWindow {
         self.text(version, &format!("{}    {}", text::VERSION, vm.version));
 
         // Diagnostics page
-        let status = vm.status.clone();
+        let status = vm.virtual_status.clone();
         self.text(self.diag_status, &status);
         for (i, (title, value)) in vm.tiles.iter().enumerate() {
             if let Some(&(t, v)) = self.tiles.get(i) {

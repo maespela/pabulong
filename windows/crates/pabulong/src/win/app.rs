@@ -50,6 +50,8 @@ struct App {
     notices: Option<NoticesWindow>,
     devices: Vec<InputDevice>,
     calls: Vec<CallSession>,
+    /// `calls` formatted for the list (dates are locale-formatted once).
+    call_lines: Vec<String>,
     virtual_mic_default: bool,
     last_slow: Instant,
     last_calls: Instant,
@@ -163,6 +165,7 @@ pub fn run() {
             main: None,
             notices: None,
             devices: devices::list_inputs(),
+            call_lines: Vec::new(),
             calls,
             virtual_mic_default: devices::virtual_mic_is_default_input(),
             last_slow: Instant::now(),
@@ -210,7 +213,7 @@ impl App {
         }
         if self.main.is_some() && now.duration_since(self.last_calls) >= Duration::from_secs(2) {
             self.last_calls = now;
-            self.calls = self.platform.store().map(CallStore::list).unwrap_or_default();
+            self.reload_calls();
         }
         self.refresh_ui();
     }
@@ -246,6 +249,11 @@ impl App {
         }
     }
 
+    fn reload_calls(&mut self) {
+        self.calls = self.platform.store().map(CallStore::list).unwrap_or_default();
+        self.call_lines = self.calls.iter().map(Self::call_line).collect();
+    }
+
     fn call_line(call: &CallSession) -> String {
         let (date, time) = shell::local_date_time(call.started_at);
         format!("{}    {} {} · {}", call.title, date, time, duration_text(call.duration_seconds(unix_now())))
@@ -266,6 +274,7 @@ impl App {
         let r = &c.ring;
         ViewModel {
             status: if c.enabled() { c.virtual_device_status().to_string() } else { text::OFF.to_string() },
+            virtual_status: c.virtual_device_status().to_string(),
             processing_on: c.enabled(),
             recording_title: c.recording_title(p).to_string(),
             recording_subtitle: if c.call_status_message.is_empty() {
@@ -275,7 +284,7 @@ impl App {
             },
             is_recording: c.active_call.is_some(),
             can_record: c.can_start_manual_recording(p),
-            calls: self.calls.iter().map(Self::call_line).collect(),
+            calls: self.call_lines.clone(),
             devices,
             selected_device,
             suppression: s.suppression_mode,
@@ -313,7 +322,7 @@ impl App {
             return;
         }
         self.devices = devices::list_inputs();
-        self.calls = self.platform.store().map(CallStore::list).unwrap_or_default();
+        self.reload_calls();
         self.main = MainWindow::create(self.instance, &self.theme);
         self.refresh_ui();
     }
@@ -417,7 +426,7 @@ impl App {
                     _ => Page::Diagnostics,
                 };
                 if page == Page::Calls {
-                    self.calls = self.platform.store().map(CallStore::list).unwrap_or_default();
+                    self.reload_calls();
                 }
                 if let Some(main) = self.main.as_mut() {
                     main.set_page(page);
@@ -513,7 +522,7 @@ impl App {
             }
             window::D_REFRESH => {
                 self.devices = devices::list_inputs();
-                self.calls = self.platform.store().map(CallStore::list).unwrap_or_default();
+                self.reload_calls();
                 self.refresh_ui();
             }
             window::D_EXPORT => self.export_diagnostics(),
@@ -562,7 +571,7 @@ fn perform(action: Action) {
                     if let (Some(store), Some(call)) = (a.platform.store(), a.calls.get(index)) {
                         let _ = store.delete(call);
                     }
-                    a.calls = a.platform.store().map(CallStore::list).unwrap_or_default();
+                    a.reload_calls();
                     a.refresh_ui();
                 });
             }
@@ -570,7 +579,8 @@ fn perform(action: Action) {
         Action::OpenNotices => {
             with_app(|a| {
                 if a.notices.is_none() {
-                    a.notices = NoticesWindow::create(a.instance, &a.theme, a.main.as_ref().map(|m| m.hwnd));
+                    // Not owned by the main window, so closing that leaves it alone.
+                    a.notices = NoticesWindow::create(a.instance, &a.theme, None);
                 }
             });
         }
