@@ -201,26 +201,22 @@ xcrun stapler staple outputs/Pabulong.app
 The app is signed with `Sources/NoiselessApp/Noiseless.entitlements`
 (microphone entitlement) so capture works under a hardened runtime.
 
-## Offline full installer
+## Installer
 
-To create a separate website/download build without touching the current
-`outputs/Pabulong.app`, use:
-
-```sh
-./Scripts/package-offline-full-installer.sh
-```
-
-The script creates a timestamped folder under `outputs/offline-full/`, adds the
-app and HAL driver payload, and writes a `.pkg` plus SHA-256 checksum. For a
-public website download, sign and notarize it with Developer ID credentials:
+The public download is `Pabulong-<version>-arm64.pkg`, built by
+`Scripts/package-offline-full-installer.sh`. It installs the app and the
+Pabulong Mic driver, shows a welcome page and the license, and includes an
+uninstaller at `Pabulong.app/Contents/Resources/uninstall.sh`. The version comes
+from the `VERSION` file.
 
 ```sh
-HARDENED=1 \
-SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-PKG_SIGN_IDENTITY="Developer ID Installer: Your Name (TEAMID)" \
-NOTARIZE=1 NOTARY_PROFILE=<profile> \
-./Scripts/package-offline-full-installer.sh
+./Scripts/package-offline-full-installer.sh       # QA build, ad-hoc signed
+./Scripts/verify-installer.sh <path to .pkg>      # check signatures and contents
+./Scripts/release.sh                              # Developer ID signed and notarized
 ```
+
+[docs/RELEASING.md](docs/RELEASING.md) has the one-time Developer ID and
+notarization setup and the release steps.
 
 ## License
 
