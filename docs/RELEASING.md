@@ -20,7 +20,7 @@ updates and lets Core Audio load the driver:
 
 ```sh
 ./Scripts/build-rust-core.sh
-SIGN_IDENTITY="Apple Development: mespela00@gmail.com (BV9Q58TJK8)" ./Scripts/package-offline-full-installer.sh
+SIGN_IDENTITY="Apple Development: Your Name (TEAMID)" ./Scripts/package-offline-full-installer.sh
 ```
 
 The package itself stays unsigned, because an Apple Development certificate
@@ -162,7 +162,7 @@ failing on that build. All of them pass once you complete the setup above:
 | `pkgutil --check-signature` | `Status: no signature` (an Apple Development certificate can't sign packages) | Signed by `Developer ID Installer: …`, "Notarization: trusted by the Apple notary service" |
 | `spctl -a -vv -t install` on the pkg | `rejected source=no usable signature` | `accepted source=Notarized Developer ID` |
 | `spctl -a -vv -t exec` on the app | `rejected origin=Apple Development: …` | `accepted source=Notarized Developer ID` |
-| `codesign -dv` authority (app, driver) | `Apple Development: mespela00@gmail.com` | `Developer ID Application: …` |
+| `codesign -dv` authority (app, driver) | `Apple Development: Your Name` | `Developer ID Application: …` |
 | `stapler validate` (pkg, app, driver) | no ticket | ticket stapled |
 
 `codesign --verify --deep --strict` already passes for the app and the driver,
@@ -180,7 +180,7 @@ and it still passes after the switch.
 A QA build signed with the Apple Development certificate:
 
 ```sh
-SIGN_IDENTITY="Apple Development: mespela00@gmail.com (BV9Q58TJK8)" ./Scripts/package-offline-full-installer.sh
+SIGN_IDENTITY="Apple Development: Your Name (TEAMID)" ./Scripts/package-offline-full-installer.sh
 ```
 
 Install it and test the uninstaller from the command line:
