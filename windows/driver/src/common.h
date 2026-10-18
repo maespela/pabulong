@@ -14,7 +14,7 @@
 #include <ntintsafe.h>
 #include <wdmsec.h>
 
-#include "pabulong_ring.h"
+#include "ring_api.h"
 
 #define PABULONG_POOLTAG 'MbaP'
 
@@ -35,15 +35,6 @@ void __cdecl operator delete(PVOID p);
 void __cdecl operator delete(PVOID p, size_t size);
 void __cdecl operator delete(PVOID p, ULONG tag);
 void __cdecl operator delete[](PVOID p);
-
-// ring.cpp — the shared ring and the control device \\.\PabulongMic.
-NTSTATUS PabulongRingAllocate();
-void PabulongRingFree();
-PPABULONG_RING_HEADER PabulongRingHeader();      // kernel mapping, always valid
-void PabulongStreamRunning(BOOLEAN running);     // consumer_running_count
-NTSTATUS PabulongControlCreate(PDRIVER_OBJECT driver);
-void PabulongControlDelete();
-void PabulongControlHookDispatch(PDRIVER_OBJECT driver);
 
 // wave.cpp / topology.cpp
 NTSTATUS CreateWaveMiniport(PUNKNOWN* unknown);

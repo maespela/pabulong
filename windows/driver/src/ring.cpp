@@ -8,7 +8,9 @@
 //
 // Copyright (c) 2026 Next Matter Pro. MIT License.
 
-#include "common.h"
+#include <ntifs.h>    // KeStackAttachProcess; this file needs no PortCls
+#include <wdmsec.h>
+#include "ring_api.h"
 #include "ring_read.h"
 
 namespace {

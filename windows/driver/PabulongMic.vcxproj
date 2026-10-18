@@ -60,6 +60,7 @@
     <ClCompile Include="src\wave.cpp" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\pabulong_ring.h" />
+    <ClInclude Include="src\ring_api.h" />
     <ClInclude Include="src\ring_read.h" />
     <ResourceCompile Include="src\PabulongMic.rc" />
     <!-- Stamped (stampinf) and checked (InfVerif) by CI from the WDK NuGet
