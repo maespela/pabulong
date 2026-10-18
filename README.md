@@ -17,8 +17,9 @@ account, analytics or subscription. See the
 record calls, you are responsible for following the recording laws where you
 and everyone on the call are.
 
-**Platforms:** macOS on Apple silicon. The audio core in `rust/` is portable and
-meant to be shared with a future Windows app; there is no Windows app yet.
+**Platforms:** macOS on Apple silicon. A Windows version that shares the
+audio core in `rust/` is in development in [`windows/`](windows/README.md); it
+is not released yet.
 
 **Download:** [nextmatterpro.com/training](https://nextmatterpro.com/training/)
 or [vastarterhub.com](https://vastarterhub.com/).
