@@ -6,8 +6,9 @@ canceller → RNNoise → background-voice gate) and feeds it to a virtual
 microphone, **Pabulong Mic**, that Zoom, Teams, Meet, Discord and other call
 apps can select. It makes no network connections.
 
-> **Status: not released.** Everything here builds in CI, but the driver
-> loads only on PCs in test-signing mode until it is signed by Microsoft. See
+> **Status: not released.** Everything here builds green in CI (app,
+> driver and MSI for x64 and ARM64), but nothing has been run on a Windows PC
+> yet, and the driver loads only in test-signing mode until Microsoft signs it. See
 > [What blocks a public release](#what-blocks-a-public-release).
 
 ## How it works
@@ -213,12 +214,10 @@ gives instant SmartScreen reputation any more, which builds with downloads.
    Partner Center account above. Until then the driver loads only in
    test-signing mode.
 2. **Code-signing certificate** for the app, the setup helper and the MSI.
-3. **First CI run**: the branch has not been pushed, so nothing has been
-   built on Windows yet. The Rust code passes `cargo check` for both
-   Windows targets (x64, ARM64) and the ring/conversion code is tested, but
-   nothing has been linked or run on Windows, and the C++ driver,
-   the MSBuild/WDK project, the RNNoise MSVC build and the WiX build have
-   not been compiled. Expect a round of fixes.
+3. **Nothing has run on Windows yet.** CI builds everything (app x64/ARM64
+   with RNNoise, driver x64/ARM64 with ApiValidator and InfVerif passing,
+   test-signed catalog, unsigned MSIs) and runs the core's tests on Windows,
+   but the app, the driver and the installer have not been run.
 4. **Testing on real hardware**, x64 and ARM64, Windows 10 2004+ and 11:
    - Zoom, Teams (new), Google Meet and Slack in Chrome/Edge, Discord
    - laptop speakers (echo cancellation), wired/USB headsets, Bluetooth
