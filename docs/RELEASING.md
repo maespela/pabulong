@@ -11,6 +11,33 @@ A download from a website must be signed with a **Developer ID** certificate and
 installer, and the person has to approve it in System Settings › Privacy &
 Security, which most people won't do.
 
+## Releasing before you have Developer ID
+
+Manila Paper is published without Developer ID, and Pabulong can ship the same
+way until the certificates exist. Sign the app and driver with the Apple
+Development certificate, which keeps Pabulong's microphone permission across
+updates and lets Core Audio load the driver:
+
+```sh
+./Scripts/build-rust-core.sh
+SIGN_IDENTITY="Apple Development: mespela00@gmail.com (BV9Q58TJK8)" ./Scripts/package-offline-full-installer.sh
+```
+
+The package itself stays unsigned, because an Apple Development certificate
+can't sign packages. The first time someone opens it, macOS refuses. They then
+click **Open Anyway** in System Settings › Privacy & Security, once. The
+download pages explain this step, using the same wording as the Manila Paper
+page. Installer doesn't mark the installed app as downloaded, so the app opens
+without a second warning.
+
+Before you announce it, install the downloaded file on a second Mac that
+never had Pabulong. Check that Pabulong Mic appears in System Settings › Sound
+› Input. This Mac trusts your own certificate, so it can't confirm that
+another Mac loads the driver.
+
+When you have Developer ID, follow the rest of this guide and remove the
+Open Anyway steps from both download pages.
+
 ## One-time setup
 
 You do these steps yourself. They need your Apple Account password, and only

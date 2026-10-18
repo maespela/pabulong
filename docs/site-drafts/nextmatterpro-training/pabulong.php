@@ -1,13 +1,13 @@
 <?php
 /*
- * DRAFT. Do not upload until a Developer ID signed and notarized installer exists.
  * Upload to /training/ next to pabulong-terms.php, together with:
  *   assets/img/pabulong/pabulong-horizontal-reversed.svg
  *   downloads/.htaccess
  *   downloads/Pabulong-<version>-arm64.pkg  (from outputs/offline-full/.../)
  * One release at a time: copy version, size and SHA-256 from the release.json
- * that Scripts/release.sh writes next to the .pkg. The values below come from the
- * Apple Development test build.
+ * that the packaging script writes next to the .pkg. Until there is a Developer ID
+ * certificate, the installer is signed with the Apple Development certificate and
+ * the install steps explain the one-time Open Anyway step (as on Manila Paper).
  */
 require_once __DIR__ . '/includes/functions.php';
 
@@ -147,9 +147,11 @@ include __DIR__ . '/includes/layout-top.php';
   <section class="section" id="install" aria-labelledby="install-title">
     <div class="container pbl-narrow">
       <h2 id="install-title">Installing it on a Mac</h2>
+      <p>Pabulong is new, and it isn’t signed with a paid Apple developer certificate yet. So the first time you open the installer, your Mac asks you to confirm. That’s expected, and you only do it once.</p>
       <ol class="pbl-steps">
-        <li>Open <strong><?= e($pabulongFile) ?></strong> from your Downloads folder.</li>
-        <li>Click Continue, agree to the license, then click Install.</li>
+        <li>Open <strong><?= e($pabulongFile) ?></strong> from your Downloads folder. If macOS says it can’t open it, click Done.</li>
+        <li>Go to System Settings, then Privacy &amp; Security. Scroll down and click Open Anyway, and enter your Mac’s password if it asks.</li>
+        <li>In the installer, click Continue, agree to the license, then click Install.</li>
         <li>Enter your Mac’s password when asked. The installer needs it to add the Pabulong Mic audio driver. Your Mac’s sound stops for a second while the driver loads.</li>
         <li>Open Pabulong from your Applications folder. Its icon appears in the menu bar at the top of the screen.</li>
         <li>Accept the Terms of Use. When macOS asks, allow microphone access, and allow Pabulong to hear your speakers. It uses your speakers’ sound only to remove echo.</li>

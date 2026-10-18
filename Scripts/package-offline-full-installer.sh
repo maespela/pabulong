@@ -277,5 +277,6 @@ echo "Size:      $SIZE_MB ($SIZE_BYTES bytes)"
 echo "SHA-256:   $SHA256"
 if [[ "$DISTRIBUTABLE" != "true" ]]; then
   echo
-  echo "NOTE: not Developer ID signed and notarized. Use it for local QA only."
+  echo "NOTE: not Developer ID signed and notarized. People who download it must click"
+  echo "Open Anyway in System Settings > Privacy & Security once (see docs/RELEASING.md)."
 fi
