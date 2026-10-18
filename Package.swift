@@ -45,6 +45,10 @@ let package = Package(
         .executable(name: "NoiselessApp", targets: ["NoiselessApp"]),
         .executable(name: "NoiselessCoreChecks", targets: ["NoiselessCoreChecks"])
     ],
+    dependencies: [
+        // In-app updates (MIT). Pinned: bump on purpose, then re-test an update.
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
+    ],
     targets: [
         .target(
             name: "NoiselessAudioCoreC",
@@ -74,13 +78,18 @@ let package = Package(
         ),
         .executableTarget(
             name: "NoiselessApp",
-            dependencies: ["NoiselessAudioCore"],
+            dependencies: [
+                "NoiselessAudioCore",
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
             // Consumed by packaging/signing scripts, not SwiftPM build inputs.
             exclude: ["Noiseless.entitlements", "Resources"],
             swiftSettings: audioCoreSwiftSettings,
             linkerSettings: [
                 .linkedFramework("AppKit"),
-                .linkedFramework("SwiftUI")
+                .linkedFramework("SwiftUI"),
+                // The packaging scripts embed Sparkle.framework in Contents/Frameworks.
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])
             ]
         ),
         .target(

@@ -31,6 +31,11 @@ struct NoiselessApp: App {
                 }
         }
         .windowResizability(.contentMinSize)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesCommand(updater: model.updater)
+            }
+        }
 
         MenuBarExtra {
             MenuBarPopover(model: model)
@@ -186,7 +191,9 @@ final class MenuBarModel: ObservableObject {
     @Published var echoReferenceActive = false
     /// Bump when the Terms of Use or Privacy Notice change materially, so users
     /// are asked to agree again.
-    static let currentTermsVersion = 2
+    static let currentTermsVersion = 3
+
+    let updater = AppUpdater()
 
     /// First-launch agreement (click-wrap). The app does not run until the user
     /// agrees; choosing Quit exits.
@@ -200,6 +207,7 @@ final class MenuBarModel: ObservableObject {
                 Please read and agree to the Pabulong Terms of Use and Privacy Notice before you continue.
 
                 • Pabulong works on this Mac. It does not send your audio or recordings to anyone.
+                • Pabulong checks for updates only if you ask it to. A check sends your IP address, the Pabulong version and your language setting to our server.
                 • If you record calls, you are bound by the recording laws where you and everyone on the call are, and you must know and follow them. Next Matter Pro does not control your recordings and is not liable for them.
                 """,
                 messageAlignment: .leading,
@@ -404,6 +412,10 @@ final class MenuBarModel: ObservableObject {
         } else {
             callManager = nil
             callStatusMessage = "Call storage unavailable"
+        }
+        updater.mayAskPermission = { [weak self] in
+            guard let self else { return false }
+            return self.settings.acceptedTermsVersion >= Self.currentTermsVersion
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             self?.presentTermsAgreementIfNeeded()
@@ -1281,7 +1293,7 @@ struct NoiselessMainWindow: View {
                 case .calls:
                     CallsLibraryView(model: model)
                 case .settings:
-                    AppSettingsView(model: model)
+                    AppSettingsView(model: model, updater: model.updater)
                 case .diagnostics:
                     DiagnosticsView(model: model)
                 }
@@ -1817,6 +1829,7 @@ struct ThirdPartyNoticesView: View {
 
 struct AppSettingsView: View {
     @ObservedObject var model: MenuBarModel
+    @ObservedObject var updater: AppUpdater
 
     private var microphoneLabel: String {
         guard let uid = model.settings.selectedInputDeviceUID else { return "System Default" }
@@ -1937,9 +1950,27 @@ struct AppSettingsView: View {
 
                 BrandSection(title: "About") {
                     BrandRow(title: "Version") {
-                        Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")
-                            .font(BrandFonts.body(13.5))
-                            .foregroundStyle(Brand.secondaryText)
+                        HStack(spacing: 14) {
+                            Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")
+                                .font(BrandFonts.body(13.5))
+                                .foregroundStyle(Brand.secondaryText)
+                            if updater.isAvailable {
+                                Button("Check for Updates…") { updater.checkForUpdates() }
+                                    .buttonStyle(BrandButtonStyle(kind: .secondary, height: 26))
+                                    .disabled(!updater.canCheckForUpdates)
+                            }
+                        }
+                    }
+                    if updater.isAvailable {
+                        BrandRow(
+                            title: "Automatically Check for Updates",
+                            caption: "Once a day. A check sends your IP address, the Pabulong version and your language setting to vastarterhub.com. Installing an update asks for your Mac password."
+                        ) {
+                            BrandSwitch(title: "Automatically Check for Updates", isOn: Binding(
+                                get: { updater.automaticallyChecksForUpdates },
+                                set: { updater.setAutomaticallyChecksForUpdates($0) }
+                            ))
+                        }
                     }
                     BrandCustomRow {
                         Text("© 2026 Next Matter Pro. Open source under the MIT License.")

@@ -73,9 +73,11 @@ for identity in "$APP_SIGN_IDENTITY" "$PKG_SIGN_IDENTITY"; do
 done
 
 echo "Building Pabulong $VERSION ($CONFIG) ..."
-swift build --product NoiselessApp -c "$CONFIG"
-swift build --product NoiselessHelper -c "$CONFIG"
-swift build --product NoiselessHALPlugin -c "$CONFIG"
+# Package.swift links the Rust core only if its library exists, so never reuse
+# a manifest evaluated before ./Scripts/build-rust-core.sh ran.
+swift build --manifest-cache none --product NoiselessApp -c "$CONFIG"
+swift build --manifest-cache none --product NoiselessHelper -c "$CONFIG"
+swift build --manifest-cache none --product NoiselessHALPlugin -c "$CONFIG"
 BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 
 rm -rf "$STAGE"
@@ -98,6 +100,7 @@ cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
 cp "$INSTALLER_SRC/uninstall.sh" "$APP/Contents/Resources/uninstall.sh"
 chmod 755 "$APP/Contents/Resources/uninstall.sh"
 write_app_info_plist "$APP"
+embed_sparkle "$APP"
 
 cp "$BIN_DIR/libNoiselessHALPlugin.dylib" "$DRIVER/Contents/MacOS/PabulongHALPlugin"
 write_driver_info_plist "$DRIVER"
@@ -109,18 +112,13 @@ chmod 755 "$PKG_SCRIPTS/preinstall" "$PKG_SCRIPTS/postinstall"
 
 sign() {
   local path="$1"; shift
-  if [[ "$APP_SIGN_IDENTITY" == "-" ]]; then
-    codesign --force --sign - "$@" "$path"
-  elif [[ "$HARDENED" == "1" ]]; then
-    codesign --force --options runtime --timestamp --sign "$APP_SIGN_IDENTITY" "$@" "$path"
-  else
-    codesign --force --sign "$APP_SIGN_IDENTITY" "$@" "$path"
-  fi
+  codesign_as "$APP_SIGN_IDENTITY" "$HARDENED" "$path" "$@"
 }
 
 echo "Signing the app and driver with: $APP_SIGN_IDENTITY"
 xattr -cr "$PAYLOAD" 2>/dev/null || true
-# Inside out: the embedded helper first, then the app bundle that seals it.
+# Inside out: Sparkle and the embedded helper first, then the app bundle that seals them.
+sign_sparkle "$APP_SIGN_IDENTITY" "$HARDENED" "$APP"
 sign "$APP/Contents/Resources/PabulongHelper"
 if [[ "$APP_SIGN_IDENTITY" == "-" ]]; then
   sign "$APP"

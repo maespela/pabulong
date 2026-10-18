@@ -9,8 +9,10 @@ if [[ ! -d "$BIN_DIR" ]]; then
   BIN_DIR="$ROOT/.build/$CONFIG"
 fi
 
-swift build --product NoiselessApp -c "$CONFIG"
-swift build --product NoiselessHelper -c "$CONFIG"
+# Package.swift links the Rust core only if its library exists, so never reuse
+# a manifest evaluated before ./Scripts/build-rust-core.sh ran.
+swift build --manifest-cache none --product NoiselessApp -c "$CONFIG"
+swift build --manifest-cache none --product NoiselessHelper -c "$CONFIG"
 
 OUT="$ROOT/outputs/Pabulong.app"
 rm -rf "$OUT"
@@ -32,6 +34,7 @@ cp "$ROOT/THIRD_PARTY_NOTICES.md" "$OUT/Contents/Resources/ThirdPartyNotices.md"
 cp "$ROOT/LICENSE" "$OUT/Contents/Resources/LICENSE.txt"
 
 write_app_info_plist "$OUT"
+embed_sparkle "$OUT"
 
 # Signing.
 #   - Local/dev (default): ad-hoc signature. Unstable identity across rebuilds,
@@ -41,6 +44,7 @@ write_app_info_plist "$OUT"
 #   - Distribution: set SIGN_IDENTITY to "Developer ID Application: ..." and
 #     HARDENED=1 to sign with a hardened runtime, ready for notarization.
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+sign_sparkle "$SIGN_IDENTITY" "${HARDENED:-0}" "$OUT" >/dev/null
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --sign - "$OUT/Contents/Resources/PabulongHelper" >/dev/null
   codesign --force --sign - "$OUT" >/dev/null

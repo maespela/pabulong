@@ -11,7 +11,7 @@ set -uo pipefail
 
 PKG="${1:?usage: verify-installer.sh <Pabulong.pkg>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-EXPECTED_VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
+EXPECTED_VERSION="${VERSION:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -69,7 +69,7 @@ for bundle in "$APP" "$DRIVER"; do
     [[ -f "$bin" ]] || continue
     archs="$(lipo -archs "$bin" 2>/dev/null)"
     [[ "$archs" == "arm64" ]] && pass "$(basename "$bin") is arm64" || fail "$(basename "$bin") is arm64" "$archs"
-    foreign="$(otool -L "$bin" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/|@rpath/libNoiselessHALPlugin)')"
+    foreign="$(otool -L "$bin" | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/|@rpath/libNoiselessHALPlugin|@rpath/Sparkle.framework/)')"
     [[ -z "$foreign" ]] && pass "$(basename "$bin") links only system libraries" || fail "$(basename "$bin") links only system libraries" "$foreign"
   done
 done
@@ -84,6 +84,30 @@ grep -q " _nlr_pipeline_create" <<<"$symbols" \
 [[ -x "$APP/Contents/Resources/uninstall.sh" ]] && pass "uninstaller included" || fail "uninstaller included"
 [[ -f "$APP/Contents/Resources/ThirdPartyNotices.md" && -f "$APP/Contents/Resources/LICENSE.txt" ]] \
   && pass "license and third-party notices included" || fail "license and third-party notices included"
+
+echo "Updates (Sparkle)"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+plist="$APP/Contents/Info.plist"
+key() { plutil -extract "$1" raw -o - "$plist" 2>/dev/null; }
+[[ -d "$SPARKLE" ]] && pass "Sparkle.framework embedded" || fail "Sparkle.framework embedded"
+app_team="$(codesign -dv "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+for part in "$SPARKLE" "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" \
+    "$SPARKLE/Versions/B/XPCServices/Installer.xpc" "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"; do
+  team="$(codesign -dv "$part" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+  [[ -n "$team" && "$team" == "$app_team" ]] \
+    && pass "$(basename "$part") signed like the app" || fail "$(basename "$part") signed like the app" "team '$team', app '$app_team'"
+done
+if otool -l "$APP/Contents/MacOS/Pabulong" | grep -A2 LC_RPATH | grep -q "path $ROOT/"; then
+  fail "no rpath into the build folder"
+else
+  pass "no rpath into the build folder"
+fi
+[[ "$(key SUFeedURL)" == https://* ]] && pass "feed is HTTPS ($(key SUFeedURL))" || fail "feed is HTTPS" "$(key SUFeedURL)"
+[[ -n "$(key SUPublicEDKey)" ]] && pass "EdDSA public key set" || fail "EdDSA public key set"
+[[ "$(key SURequireSignedFeed)" == "true" ]] && pass "signed feed required" || fail "signed feed required"
+[[ -z "$(key SUEnableAutomaticChecks)" ]] && pass "automatic checks wait for the user's OK" || fail "automatic checks wait for the user's OK"
+[[ "$(key SUEnableSystemProfiling)" == "false" && "$(key SUSendProfileInfo)" == "false" ]] \
+  && pass "no system profile sent" || fail "no system profile sent"
 
 echo
 if [[ $failures -eq 0 ]]; then

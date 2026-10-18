@@ -10,8 +10,10 @@ a microphone, and the people on the call hear your voice without the room.
 - Turns down other people talking near you (Background Voices: Light, Balanced, Strong).
 - Optional call recording, saved only on your Mac, with a consent reminder.
 
-Everything runs on your Mac. The app makes no network connections and has no
-account, analytics or subscription. See the
+Everything runs on your Mac. Audio and recordings never leave it, and there is
+no account, analytics or subscription. The only network connection is the update
+check, which is off until you turn it on (or choose Check for Updates). It sends
+your IP address, the app version and your language setting. See the
 [Privacy Notice](https://nextmatterpro.com/training/pabulong-privacy.php) and
 [Terms of Use](https://nextmatterpro.com/training/pabulong-terms.php). If you
 record calls, you are responsible for following the recording laws where you

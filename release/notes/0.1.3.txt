@@ -1,0 +1,2 @@
+Pabulong can now check for updates and install them for you. Automatic checks stay off until you turn them on.
+Installing an update also updates the Pabulong Mic driver, so your Mac asks for your password.
