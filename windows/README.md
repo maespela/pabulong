@@ -121,6 +121,10 @@ wix extension add -g WixToolset.Util.wixext/5.0.2 WixToolset.UI.wixext/5.0.2
 
 ```bash
 cd windows && cargo test                       # portable app logic + ring
+# With the Windows std targets (`rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc`):
+cargo check --target x86_64-pc-windows-msvc --workspace --all-targets
+cargo check --target aarch64-pc-windows-msvc --workspace --all-targets
+# Without them:
 windows/scripts/typecheck-off-windows.sh       # type-checks win/ against the real windows-rs API
 clang++ -std=c++17 -fsanitize=address,undefined -Iwindows/driver/src windows/driver/test/ring_test.cpp -o /tmp/ring_test && /tmp/ring_test
 ```
@@ -210,8 +214,9 @@ gives instant SmartScreen reputation any more, which builds with downloads.
    test-signing mode.
 2. **Code-signing certificate** for the app, the setup helper and the MSI.
 3. **First CI run**: the branch has not been pushed, so nothing has been
-   built on Windows yet. The Rust code type-checks against the real
-   windows-rs API and the ring/conversion code is tested, but the C++ driver,
+   built on Windows yet. The Rust code passes `cargo check` for both
+   Windows targets (x64, ARM64) and the ring/conversion code is tested, but
+   nothing has been linked or run on Windows, and the C++ driver,
    the MSBuild/WDK project, the RNNoise MSVC build and the WiX build have
    not been compiled. Expect a round of fixes.
 4. **Testing on real hardware**, x64 and ARM64, Windows 10 2004+ and 11:

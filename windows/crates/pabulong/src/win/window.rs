@@ -67,7 +67,7 @@ struct Palette {
     main: HWND,
     background: HBRUSH,
     sidebar: HBRUSH,
-    headings: Vec<HWND>,
+    // Headings and body text use the default colour (navy).
     captions: Vec<HWND>,
     warnings: Vec<HWND>,
     sidebar_controls: Vec<HWND>,
@@ -352,16 +352,11 @@ impl MainWindow {
         captions.push(health);
         let refresh = ui::button(hwnd, text::REFRESH, D_REFRESH, b);
         let export = ui::button(hwnd, text::EXPORT_DIAGNOSTICS, D_EXPORT, b);
-        let headings = vec![
-            title, calls_heading, empty_title, rec_title, s.heading_audio, s.heading_system, s.heading_recording, s.heading_about, diag_heading,
-        ];
-
         PALETTE.with(|cell| {
             *cell.borrow_mut() = Some(Palette {
                 main: hwnd,
                 background: theme.background,
                 sidebar: theme.sidebar,
-                headings,
                 captions,
                 warnings,
                 sidebar_controls: vec![title, status, side_processing, nav[0], nav[1], nav[2]],
