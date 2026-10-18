@@ -33,24 +33,26 @@ enum Brand {
     // Surfaces
     static let window = dynamic(light: 0xECEEF1, dark: 0x0B1F3A)
     static let sidebar = dynamic(light: 0xE4E7EC, dark: 0x091930)
-    static let sidebarSelection = dynamic(light: 0xDCE2EC, dark: 0x1A3A64)
+    static let sidebarSelection = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.10)
     static let popover = dynamic(light: 0xF3F4F6, dark: 0x0D2442)
-    static let card = dynamic(light: 0xFFFFFF, dark: 0x112B4D)
-    static let cardStroke = dynamic(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.07)
-    static let rowDivider = dynamic(light: 0xE7E9ED, dark: 0xFFFFFF, darkAlpha: 0.08)
-    static let separator = dynamic(light: 0xD5D9DF, dark: 0xFFFFFF, darkAlpha: 0.12)
-    static let strip = dynamic(light: 0xE8EBF0, dark: 0x173761)
-    static let control = dynamic(light: 0xFFFFFF, dark: 0x1A3A63)
+    /// Cards are frosted white rather than solid, edged with a soft highlight.
+    static let card = dynamic(light: 0xFFFFFF, dark: 0x112B4D, lightAlpha: 0.72, darkAlpha: 0.9)
+    static let cardStroke = dynamic(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.75, darkAlpha: 0.07)
+    static let rowDivider = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.07, darkAlpha: 0.08)
+    static let separator = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.10, darkAlpha: 0.12)
+    static let strip = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.05, darkAlpha: 0.08)
+    static let control = dynamic(light: 0xFFFFFF, dark: 0x1A3A63, lightAlpha: 0.9, darkAlpha: 1)
+    static let cardShadow = Color(nsColor: NSColor(hex: 0x0D2C52, alpha: 0.06))
     static let switchOff = dynamic(light: 0xC9CED6, dark: 0x2D4872)
-    static let secondaryButton = dynamic(light: 0xDADDE3, dark: 0x1E3D66)
+    static let secondaryButton = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.07, darkAlpha: 0.10)
     static let hover = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.06, darkAlpha: 0.08)
     static let meterTrack = dynamic(light: 0x0D2C52, dark: 0xFFFFFF, lightAlpha: 0.10, darkAlpha: 0.12)
 
     // Glass: light brand tints laid over a behind-window blur, translucent
     // enough that the window feels light without losing its colour.
-    static let sidebarGlass = dynamic(light: 0xEEF0F4, dark: 0x091930, lightAlpha: 0.50, darkAlpha: 0.68)
-    static let windowGlass = dynamic(light: 0xF5F6F8, dark: 0x0B1F3A, lightAlpha: 0.66, darkAlpha: 0.84)
-    static let popoverGlass = dynamic(light: 0xF7F7F8, dark: 0x0D2442, lightAlpha: 0.62, darkAlpha: 0.80)
+    static let sidebarGlass = dynamic(light: 0xEEF0F4, dark: 0x091930, lightAlpha: 0.40, darkAlpha: 0.68)
+    static let windowGlass = dynamic(light: 0xF5F6F8, dark: 0x0B1F3A, lightAlpha: 0.50, darkAlpha: 0.84)
+    static let popoverGlass = dynamic(light: 0xF7F7F8, dark: 0x0D2442, lightAlpha: 0.42, darkAlpha: 0.80)
 }
 
 extension NSColor {
@@ -283,21 +285,21 @@ struct BrandPopUp<SelectionValue: Hashable, Content: View>: View {
         } label: {
             HStack(spacing: 8) {
                 Text(valueLabel)
-                    .font(BrandFonts.body(13))
+                    .font(BrandFonts.body(12.5))
                     .foregroundStyle(Brand.text)
                     .lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 16, height: 16)
-                    .background(Brand.signal, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .background(Brand.signal, in: Circle())
             }
-            .padding(.leading, 10)
+            .padding(.leading, 11)
             .padding(.trailing, 5)
             .frame(height: 26)
-            .background(Brand.control, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Brand.cardStroke))
-            .shadow(color: .black.opacity(0.10), radius: 1, y: 0.5)
+            .background(Brand.control, in: Capsule())
+            .overlay(Capsule().strokeBorder(Brand.rowDivider))
+            .shadow(color: Brand.cardShadow, radius: 2, y: 1)
             .contentShape(Rectangle())
         }
         .menuStyle(.button)
@@ -336,15 +338,21 @@ private struct BrandButtonBody: View {
     }
 
     var body: some View {
-        configuration.label
-            .font(BrandFonts.body(13, .semibold))
+        let label = configuration.label
+            .font(BrandFonts.body(12.5, .medium))
             .labelStyle(BrandLabelStyle())
             .foregroundStyle(kind == .secondary ? Brand.text : Color.white)
             .padding(.horizontal, 14)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: height)
-            .background(fill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        Group {
+            if kind == .secondary, #available(macOS 26.0, *) {
+                label.glassEffect(.regular.interactive(), in: Capsule())
+            } else {
+                label.background(fill, in: Capsule())
+            }
+        }
+        .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
+        .contentShape(Capsule())
     }
 }
 
@@ -398,18 +406,17 @@ struct BrandSection<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             if let title {
                 Text(title)
-                    .font(BrandFonts.body(12, .bold))
+                    .font(BrandFonts.body(11.5, .semibold))
                     .foregroundStyle(Brand.secondaryText)
-                    .padding(.leading, 4)
+                    .padding(.leading, 12)
             }
             VStack(spacing: 0) {
                 content()
             }
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
+            .brandCard()
         }
     }
 }
@@ -426,7 +433,7 @@ struct BrandRow<Trailing: View>: View {
             HStack(alignment: .center, spacing: 20) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(BrandFonts.body(14))
+                        .font(BrandFonts.body(13.5))
                         .foregroundStyle(Brand.text)
                     if let caption {
                         Text(caption)
@@ -439,10 +446,10 @@ struct BrandRow<Trailing: View>: View {
                 trailing()
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, caption == nil ? 9 : 10)
-            .frame(minHeight: caption == nil ? 44 : 60)
+            .padding(.vertical, caption == nil ? 7 : 9)
+            .frame(minHeight: caption == nil ? 40 : 56)
             if showsDivider {
-                Rectangle().fill(Brand.rowDivider).frame(height: 1)
+                Rectangle().fill(Brand.rowDivider).frame(height: 1).padding(.leading, 14)
             }
         }
     }
@@ -458,12 +465,33 @@ struct BrandCustomRow<Content: View>: View {
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(minHeight: 44)
+                .padding(.vertical, 9)
+                .frame(minHeight: 40)
             if showsDivider {
-                Rectangle().fill(Brand.rowDivider).frame(height: 1)
+                Rectangle().fill(Brand.rowDivider).frame(height: 1).padding(.leading, 14)
             }
         }
+    }
+}
+
+extension View {
+    /// Frosted card: translucent white, a soft highlight edge and a faint shadow.
+    func brandCard(cornerRadius: CGFloat = 14) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return self
+            .background(Brand.card, in: shape)
+            .overlay(shape.strokeBorder(Brand.cardStroke, lineWidth: 1))
+            .shadow(color: Brand.cardShadow, radius: 6, y: 2)
+    }
+}
+
+/// Light glass behind the whole window: a behind-window blur laid in the
+/// content. Window-level backgrounds (`containerBackground(for: .window)`,
+/// a clear or transparent title bar) hide the traffic lights and toolbar on
+/// macOS 27, so the window itself stays standard.
+struct GlassWindowBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background(GlassBlur().ignoresSafeArea())
     }
 }
 

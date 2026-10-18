@@ -61,7 +61,7 @@ struct MenuBarPopover: View {
                 PabulongAppMark(enabled: model.enabled, size: 32)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Pabulong")
-                        .font(BrandFonts.body(16.5, .bold))
+                        .font(BrandFonts.body(16, .semibold))
                         .foregroundStyle(Brand.text)
                     Text(model.enabled || model.isVirtualMicInUse ? model.virtualDeviceStatus : "Off")
                         .font(BrandFonts.body(12))
@@ -1227,7 +1227,7 @@ enum MainAppSection: String, CaseIterable, Identifiable {
 @MainActor
 final class MainWindowUIState: ObservableObject {
     @Published var selectedSection: MainAppSection = .calls
-    @Published var sidebarCollapsed = false
+    @Published var columnVisibility: NavigationSplitViewVisibility = .all
 }
 
 @MainActor
@@ -1241,56 +1241,31 @@ struct NoiselessMainWindow: View {
     @StateObject private var ui = MainWindowUIState()
 
     var body: some View {
-        HStack(spacing: 0) {
+        // A native split view: on current macOS the sidebar floats as a glass
+        // panel and the system adds the sidebar toggle to the toolbar.
+        NavigationSplitView(columnVisibility: $ui.columnVisibility) {
             VStack(alignment: .leading, spacing: 2) {
-                VStack(spacing: 10) {
-                    HStack(spacing: 9) {
-                        if !ui.sidebarCollapsed {
-                            PabulongAppMark(enabled: model.enabled, size: 26)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("Pabulong")
-                                    .font(BrandFonts.body(14.5, .bold))
-                                    .foregroundStyle(Brand.text)
-                                Text(model.enabled ? model.virtualDeviceStatus : "Off")
-                                    .font(BrandFonts.body(11.5))
-                                    .foregroundStyle(Brand.secondaryText)
-                            }
-                            Spacer()
-                        }
-
-                        Button {
-                            withAnimation(.snappy(duration: 0.18)) {
-                                ui.sidebarCollapsed.toggle()
-                            }
-                        } label: {
-                            Image(systemName: ui.sidebarCollapsed ? "sidebar.right" : "sidebar.left")
-                                .font(.system(size: 14, weight: .regular))
-                                .foregroundStyle(Brand.secondaryText)
-                                .frame(width: 32, height: 32)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(BrandPlainButtonStyle())
-                        .help(ui.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
-                        .accessibilityLabel(ui.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
+                HStack(spacing: 9) {
+                    PabulongAppMark(enabled: model.enabled, size: 24)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Pabulong")
+                            .font(BrandFonts.body(14, .semibold))
+                            .foregroundStyle(Brand.text)
+                        Text(model.enabled ? model.virtualDeviceStatus : "Off")
+                            .font(BrandFonts.body(11.5))
+                            .foregroundStyle(Brand.secondaryText)
                     }
-                    .frame(maxWidth: .infinity, alignment: ui.sidebarCollapsed ? .center : .leading)
-
-                    if ui.sidebarCollapsed {
-                        PabulongAppMark(enabled: model.enabled, size: 26)
-                            .frame(maxWidth: .infinity)
-                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(.leading, ui.sidebarCollapsed ? 0 : 14)
-                .padding(.trailing, ui.sidebarCollapsed ? 0 : 8)
-                .padding(.top, 12)
-                .padding(.bottom, 14)
+                .padding(.horizontal, 6)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
 
                 ForEach(MainAppSection.allCases) { section in
                     SidebarButton(
                         title: section.title,
                         icon: section.icon,
-                        isSelected: ui.selectedSection == section,
-                        isCollapsed: ui.sidebarCollapsed
+                        isSelected: ui.selectedSection == section
                     ) {
                         ui.selectedSection = section
                     }
@@ -1298,13 +1273,9 @@ struct NoiselessMainWindow: View {
 
                 Spacer()
             }
-            .frame(width: ui.sidebarCollapsed ? 68 : 214)
-            .clipped()
-            .background(Brand.sidebarGlass.ignoresSafeArea())
-            .animation(.snappy(duration: 0.18), value: ui.sidebarCollapsed)
-
-            Rectangle().fill(Brand.separator).frame(width: 1).ignoresSafeArea()
-
+            .padding(.horizontal, 10)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+        } detail: {
             Group {
                 switch ui.selectedSection {
                 case .calls:
@@ -1318,7 +1289,7 @@ struct NoiselessMainWindow: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Brand.windowGlass.ignoresSafeArea())
         }
-        .background(GlassBlur().ignoresSafeArea())
+        .modifier(GlassWindowBackground())
         .foregroundStyle(Brand.text)
         .toolbar {
             ToolbarItemGroup {
@@ -1345,27 +1316,23 @@ struct SidebarButton: View {
     var title: String
     var icon: BrandIcon
     var isSelected: Bool
-    var isCollapsed: Bool
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: isCollapsed ? 0 : 10) {
-                BrandIconView(icon: icon, size: isCollapsed ? 18 : 16)
-                if !isCollapsed {
-                    Text(title)
-                        .font(BrandFonts.body(14, isSelected ? .medium : .regular))
-                    Spacer(minLength: 0)
-                }
+            HStack(spacing: 9) {
+                BrandIconView(icon: icon, size: 15)
+                Text(title)
+                    .font(BrandFonts.body(13.5, isSelected ? .medium : .regular))
+                Spacer(minLength: 0)
             }
             .foregroundStyle(Brand.text)
-            .frame(maxWidth: .infinity, minHeight: isCollapsed ? 40 : 34, alignment: isCollapsed ? .center : .leading)
-            .padding(.horizontal, isCollapsed ? 0 : 10)
-            .background(isSelected ? Brand.sidebarSelection : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .padding(.horizontal, 10)
+            .background(isSelected ? Brand.sidebarSelection : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(BrandPlainButtonStyle())
-        .padding(.horizontal, 8)
+        .buttonStyle(BrandPlainButtonStyle(cornerRadius: 8))
         .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -1510,8 +1477,7 @@ struct BrandSearchField: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.cardStroke))
+        .brandCard(cornerRadius: 10)
     }
 }
 
@@ -1544,7 +1510,7 @@ struct EmptyCallList: View {
             BrandIconView(icon: .calls, size: 30)
                 .foregroundStyle(Brand.secondaryText)
             Text("No Calls")
-                .font(BrandFonts.display(15))
+                .font(BrandFonts.display(15, .medium))
                 .foregroundStyle(Brand.text)
             Text("Recordings will appear here.")
                 .font(BrandFonts.body(12))
@@ -1562,7 +1528,7 @@ struct NoCallDetailPlaceholder: View {
                 .font(.system(size: 40, weight: .light))
                 .foregroundStyle(Brand.secondaryText)
             Text("Select a Call")
-                .font(BrandFonts.display(18))
+                .font(BrandFonts.display(18, .medium))
                 .foregroundStyle(Brand.text)
             Text("Recordings and audio files open here.")
                 .font(BrandFonts.body(13))
@@ -1590,7 +1556,7 @@ struct RecordingControlStrip: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.recordingControlTitle)
-                    .font(BrandFonts.body(compact ? 12.5 : 13.5, .bold))
+                    .font(BrandFonts.body(compact ? 12.5 : 13.5, .semibold))
                     .foregroundStyle(Brand.text)
                     .lineLimit(1)
                 Text(model.recordingControlSubtitle)
@@ -1636,7 +1602,7 @@ struct RecordingControlStrip: View {
         }
         .padding(.horizontal, compact ? 9 : 11)
         .padding(.vertical, compact ? 7 : 9)
-        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -1659,12 +1625,11 @@ struct CallDetailHeader: View {
                     }
                 }
                 .frame(width: 44, height: 44)
-                .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
+                .brandCard(cornerRadius: 12)
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(call.title)
-                        .font(BrandFonts.display(20))
+                        .font(BrandFonts.display(20, .medium))
                         .foregroundStyle(Brand.text)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1751,7 +1716,7 @@ struct PlaybackStrip: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
-        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Brand.strip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Playback \(model.playbackTimeText())")
     }
@@ -1826,7 +1791,7 @@ struct ThirdPartyNoticesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Third-Party Notices")
-                .font(BrandFonts.display(18))
+                .font(BrandFonts.display(18, .medium))
                 .foregroundStyle(Brand.text)
             ScrollView {
                 Text(text)
@@ -1836,8 +1801,7 @@ struct ThirdPartyNoticesView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
             }
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
+            .brandCard(cornerRadius: 12)
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
@@ -2091,11 +2055,10 @@ struct LibraryHeader: View {
             BrandIconView(icon: icon, size: 18)
                 .foregroundStyle(Brand.accentInk)
                 .frame(width: 34, height: 34)
-                .background(Brand.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.cardStroke))
+                .brandCard(cornerRadius: 10)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(BrandFonts.display(17))
+                    .font(BrandFonts.display(17, .medium))
                     .foregroundStyle(Brand.text)
                 Text(subtitle)
                     .font(BrandFonts.body(12))
@@ -2127,7 +2090,7 @@ struct CallRow: View {
             .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 3) {
                 Text(call.title)
-                    .font(BrandFonts.body(13.5, .semibold))
+                    .font(BrandFonts.body(13.5, .medium))
                     .foregroundStyle(Brand.text)
                     .lineLimit(1)
                 Text("\(model.callDateText(call)) · \(model.callDurationText(call))")
@@ -2210,7 +2173,7 @@ struct MetricTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(BrandFonts.body(14, .semibold))
+                .font(BrandFonts.body(14, .medium))
                 .foregroundStyle(Brand.text)
             LevelMeter(value: value)
                 .frame(width: 240)
@@ -2220,8 +2183,7 @@ struct MetricTile: View {
         }
         .padding(14)
         .frame(width: 330, alignment: .leading)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
+        .brandCard(cornerRadius: 12)
     }
 }
 
@@ -2241,7 +2203,7 @@ struct InfoTile: View {
                     .font(BrandFonts.body(11.5))
                     .foregroundStyle(Brand.secondaryText)
                 Text(value)
-                    .font(BrandFonts.body(14, .semibold))
+                    .font(BrandFonts.body(14, .medium))
                     .foregroundStyle(Brand.text)
                     .lineLimit(1)
             }
@@ -2249,8 +2211,7 @@ struct InfoTile: View {
         }
         .padding(14)
         .frame(width: 330, alignment: .leading)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.cardStroke))
+        .brandCard(cornerRadius: 12)
     }
 }
 
