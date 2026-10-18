@@ -1,0 +1,11 @@
+<Project>
+  <!-- Pull the WDK/SDK in from packages\ (restored by `nuget restore packages.config -PackagesDirectory packages`). -->
+  <PropertyGroup>
+    <PabulongWdkVersion>10.0.28000.2526</PabulongWdkVersion>
+  </PropertyGroup>
+  <Import Project="packages\Microsoft.Windows.WDK.x64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('packages\Microsoft.Windows.WDK.x64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="packages\Microsoft.Windows.WDK.arm64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.WDK.arm64.props" Condition="Exists('packages\Microsoft.Windows.WDK.arm64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.WDK.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="packages\Microsoft.Windows.SDK.CPP.x64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.x64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="packages\Microsoft.Windows.SDK.CPP.arm64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.arm64.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="packages\Microsoft.Windows.SDK.CPP.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.$(PabulongWdkVersion)\build\native\Microsoft.Windows.SDK.cpp.props')" />
+</Project>

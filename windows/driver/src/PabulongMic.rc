@@ -1,0 +1,17 @@
+// Version resource for PabulongMic.sys.
+#include <windows.h>
+#include <ntverp.h>
+
+#define VER_FILETYPE                VFT_DRV
+#define VER_FILESUBTYPE             VFT2_DRV_SOUND
+#define VER_FILEDESCRIPTION_STR     "Pabulong Mic virtual microphone"
+#define VER_INTERNALNAME_STR        "PabulongMic.sys"
+#define VER_ORIGINALFILENAME_STR    "PabulongMic.sys"
+#undef  VER_COMPANYNAME_STR
+#define VER_COMPANYNAME_STR         "Next Matter Pro"
+#undef  VER_PRODUCTNAME_STR
+#define VER_PRODUCTNAME_STR         "Pabulong"
+#undef  VER_LEGALCOPYRIGHT_STR
+#define VER_LEGALCOPYRIGHT_STR      "\251 2026 Next Matter Pro. MIT License."
+
+#include "common.ver"
