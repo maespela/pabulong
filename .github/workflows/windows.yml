@@ -131,6 +131,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
+        with:
+          # x64 MSBuild: the WDK targets pick tools (ApiValidator, stampinf)
+          # from bin\<host arch>, and the NuGet WDK ships no x86 copies.
+          msbuild-architecture: x64
       - name: WDK and SDK from NuGet
         working-directory: windows/driver
         run: nuget restore packages.config -PackagesDirectory packages
