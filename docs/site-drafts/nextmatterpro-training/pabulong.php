@@ -1,25 +1,35 @@
 <?php
-/*
- * Upload to /training/ next to pabulong-terms.php, together with:
- *   assets/img/pabulong/pabulong-horizontal-reversed.svg
- *   downloads/.htaccess
- *   downloads/Pabulong-<version>-arm64.pkg  (from outputs/offline-full/.../)
- * One release at a time: copy version, size and SHA-256 from the release.json
- * that the packaging script writes next to the .pkg. Until there is a Developer ID
- * certificate, the installer is signed with the Apple Development certificate and
- * the install steps explain the one-time Open Anyway step (as on Manila Paper).
- */
+/* Public page: download Pabulong, the free noise-cancelling microphone for Mac (Windows coming soon).
+ * Like Manila Paper, the installer is hosted once, on vastarterhub.com; keep the version, size and checksum
+ * in step with vastarterhub.com/pabulong/ on every release (values from the release.json next to the .pkg).
+ * The installer is signed with the Apple Development certificate, not Developer ID, so the install steps
+ * explain the one-time Open Anyway step, as on manila-paper.php. */
 require_once __DIR__ . '/includes/functions.php';
 
-$pabulongVersion = '0.1.0';
-$pabulongFile = 'Pabulong-' . $pabulongVersion . '-arm64.pkg';
+const PB_VERSION = '0.1.0';
+const PB_FILES = 'https://vastarterhub.com/downloads/pabulong';
+$pabulongVersion = PB_VERSION;
+$pabulongFile = 'Pabulong-' . PB_VERSION . '-arm64.pkg';
 $pabulongSize = '6.9 MB';
 $pabulongSha256 = '8aa0e7040dd83c0f5ca884d9255a8369e47ccc78ca982019117fc6d6cd8ba57a';
-$pabulongDownload = 'downloads/' . $pabulongFile;
+$pabulongDownload = PB_FILES . '/' . $pabulongFile;
 $pabulongSource = 'https://github.com/maespela/pabulong';
 $pabulongUninstall = 'sudo /Applications/Pabulong.app/Contents/Resources/uninstall.sh';
+$img = BASE_URL . '/assets/img/pabulong';
 
-$pageTitle = APP_NAME . ' | Pabulong: Free Noise-Cancelling Microphone for Mac and Windows';
+$pageUrl = APP_URL . '/pabulong.php';
+$pageTitle = 'Pabulong, a free noise-cancelling microphone for Mac and Windows | Next Matter Pro Academy';
+$description = 'Pabulong removes background noise, speaker echo and nearby voices from your microphone on calls. Free, open source, no account. For Mac now, Windows coming soon.';
+$appLd = ['@context' => 'https://schema.org', '@type' => 'SoftwareApplication', 'name' => 'Pabulong', 'url' => $pageUrl,
+    'applicationCategory' => 'MultimediaApplication', 'operatingSystem' => 'macOS 14 or later, Apple silicon', 'softwareVersion' => PB_VERSION,
+    'description' => $description, 'license' => 'https://opensource.org/license/mit', 'codeRepository' => $pabulongSource,
+    'downloadUrl' => $pabulongDownload, 'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'USD'],
+    'publisher' => ['@type' => 'Organization', 'name' => 'Next Matter Pro', 'url' => 'https://nextmatterpro.com']];
+$flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+$headExtra = nmp_share_meta('Pabulong, a free noise-cancelling microphone for Mac and Windows', $description, null, $pageUrl)
+    . '  <link rel="canonical" href="' . e($pageUrl) . '">' . "\n"
+    . '  <script type="application/ld+json">' . json_encode($appLd, $flags) . '</script>' . "\n";
+
 include __DIR__ . '/includes/layout-top.php';
 ?>
 <style>
@@ -79,7 +89,7 @@ include __DIR__ . '/includes/layout-top.php';
         <p class="pbl-small">By downloading Pabulong you agree to the <a href="pabulong-terms.php">Terms of Use</a>.</p>
       </div>
       <div class="pbl-mark">
-        <img src="assets/img/pabulong/pabulong-horizontal-reversed.svg" width="1131" height="200" alt="Pabulong">
+        <img src="<?= e($img) ?>/pabulong-horizontal-reversed.svg" width="1131" height="200" alt="Pabulong">
       </div>
     </div>
   </section>
@@ -134,7 +144,7 @@ include __DIR__ . '/includes/layout-top.php';
           <span class="btn btn-outline pbl-soon" aria-disabled="true">Coming soon</span>
         </article>
       </div>
-      <p class="pbl-small">By downloading Pabulong you agree to the <a href="pabulong-terms.php">Terms of Use</a>. Not sure which chip your Mac has? Open the Apple menu and choose About This Mac.</p>
+      <p class="pbl-small">By downloading Pabulong you agree to the <a href="pabulong-terms.php">Terms of Use</a>. The installer is hosted on VA Starter Hub, our resource site. Not sure which chip your Mac has? Open the Apple menu and choose About This Mac.</p>
       <details class="pbl-details">
         <summary>Check that your download is the real one</summary>
         <p>If the SHA-256 checksum of your file matches the one below, it is exactly the file we published. Open Terminal and run <code>shasum -a 256 ~/Downloads/<?= e($pabulongFile) ?></code>.</p>
@@ -181,7 +191,7 @@ include __DIR__ . '/includes/layout-top.php';
   <section class="section" aria-labelledby="maker">
     <div class="container pbl-narrow">
       <h2 id="maker">Who makes it</h2>
-      <p>Pabulong is made by Next Matter Pro. Found a bug or have an idea? <a href="<?= e($pabulongSource) ?>/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> or email <a href="mailto:clientcare@nextmatterpro.com">clientcare@nextmatterpro.com</a>.</p>
+      <p>Pabulong is made by Next Matter Pro. Found a bug or have an idea? <a href="<?= e($pabulongSource) ?>/issues" target="_blank" rel="noopener">Open an issue on GitHub</a> or <a href="mailto:<?= e(SUPPORT_EMAIL) ?>">email us</a>.</p>
     </div>
   </section>
 </main>
