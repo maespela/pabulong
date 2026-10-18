@@ -19,7 +19,7 @@ $pabulongDownload = 'downloads/' . $pabulongFile;
 $pabulongSource = 'https://github.com/maespela/pabulong';
 $pabulongUninstall = 'sudo /Applications/Pabulong.app/Contents/Resources/uninstall.sh';
 
-$pageTitle = APP_NAME . ' | Pabulong: Free Noise-Cancelling Microphone for Mac';
+$pageTitle = APP_NAME . ' | Pabulong: Free Noise-Cancelling Microphone for Mac and Windows';
 include __DIR__ . '/includes/layout-top.php';
 ?>
 <style>
@@ -36,7 +36,11 @@ include __DIR__ . '/includes/layout-top.php';
     background: radial-gradient(ellipse at center, #123B6D 0%, #0B1F3A 75%);
   }
   .pbl-mark img { display: block; width: min(100%, 320px); height: auto; }
-  .pbl-cta { margin: 24px 0 12px; }
+  .pbl-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 12px; }
+  .pbl-soon { cursor: default; opacity: 0.6; pointer-events: none; }
+  .pbl-download { display: flex; flex-direction: column; gap: 4px; }
+  .pbl-download .btn { align-self: flex-start; margin-top: auto; }
+  .pbl-download p { margin: 0 0 8px; }
   .pbl-small { font-size: 0.92rem; color: var(--nmp-muted, #5B6B7C); margin: 6px 0; }
   .pbl-page a:not(.btn) { color: #1A3CFF; text-decoration: underline; text-underline-offset: 2px; }
   .pbl-page h2 { margin: 0 0 16px; }
@@ -65,10 +69,11 @@ include __DIR__ . '/includes/layout-top.php';
     <div class="container pbl-hero-grid">
       <div>
         <h1>Pabulong cleans up your microphone on calls</h1>
-        <p class="lead">Pabulong adds a microphone called Pabulong Mic to your Mac. Choose it in your call app, and the people on the call hear your voice without the noise around you.</p>
-        <p>It’s free, it needs no account, and your audio never leaves your Mac.</p>
+        <p class="lead">Pabulong adds a microphone called Pabulong Mic to your computer. Choose it in your call app, and the people on the call hear your voice without the noise around you.</p>
+        <p>It’s free, it needs no account, and your audio never leaves your computer.</p>
         <div class="pbl-cta">
           <a class="btn btn-primary" href="<?= e($pabulongDownload) ?>" download>Download for Mac</a>
+          <span class="btn btn-outline pbl-soon" aria-disabled="true">Windows: coming soon</span>
         </div>
         <p class="pbl-small">Version <?= e($pabulongVersion) ?>, <?= e($pabulongSize) ?>. Needs a Mac with Apple silicon and macOS 14 or later. <a href="#install">How to install</a></p>
         <p class="pbl-small">By downloading Pabulong you agree to the <a href="pabulong-terms.php">Terms of Use</a>.</p>
@@ -97,7 +102,7 @@ include __DIR__ . '/includes/layout-top.php';
         </article>
         <article class="panel">
           <h3>Call recording, if you want it</h3>
-          <p>Pabulong can save your calls as audio files on your Mac. It is off until you turn it on, and it reminds you to get everyone’s consent first.</p>
+          <p>Pabulong can save your calls as audio files on your computer. It is off until you turn it on, and it reminds you to get everyone’s consent first.</p>
         </article>
       </div>
       <p style="max-width: 760px;">Recording a call without everyone’s consent is illegal in many places, including the Philippines and several U.S. states. If you record, you are responsible for following the laws where you and everyone on the call are. <a href="pabulong-terms.php#recording">Read section 5 of the Terms</a>.</p>
@@ -107,20 +112,27 @@ include __DIR__ . '/includes/layout-top.php';
   <section class="section" aria-labelledby="private">
     <div class="container pbl-narrow">
       <h2 id="private">No account, no subscription, nothing sent anywhere</h2>
-      <p>Pabulong processes your voice on your Mac and makes no internet connections. There is no account to create, no subscription to pay and no server that hears your calls.</p>
+      <p>Pabulong processes your voice on your computer and makes no internet connections. There is no account to create, no subscription to pay and no server that hears your calls.</p>
       <p>The code is open source under the MIT License. You or anyone you trust can read it on <a href="<?= e($pabulongSource) ?>" target="_blank" rel="noopener">GitHub</a>.</p>
       <p>The <a href="pabulong-privacy.php">Pabulong Privacy Notice</a> and the <a href="pabulong-terms.php">Pabulong Terms of Use</a> have the details.</p>
     </div>
   </section>
 
   <section class="section section-soft" aria-labelledby="download">
-    <div class="container pbl-narrow">
+    <div class="container">
       <h2 id="download">Download Pabulong</h2>
-      <div class="panel" style="padding: 24px;">
-        <h3 style="margin-top: 0;">Mac with Apple silicon</h3>
-        <p>Version <?= e($pabulongVersion) ?> for macOS 14 Sonoma or later, on Macs with an M1 chip or newer.</p>
-        <p class="pbl-small"><?= e($pabulongFile) ?>, <?= e($pabulongSize) ?></p>
-        <a class="btn btn-primary" href="<?= e($pabulongDownload) ?>" download>Download for Mac</a>
+      <div class="pbl-features">
+        <article class="panel pbl-download">
+          <h3>Mac with Apple silicon</h3>
+          <p>Version <?= e($pabulongVersion) ?> for macOS 14 Sonoma or later, on Macs with an M1 chip or newer.</p>
+          <p class="pbl-small"><?= e($pabulongFile) ?>, <?= e($pabulongSize) ?></p>
+          <a class="btn btn-primary" href="<?= e($pabulongDownload) ?>" download>Download for Mac</a>
+        </article>
+        <article class="panel pbl-download">
+          <h3>Windows</h3>
+          <p>The Windows version is coming soon. It will be free too.</p>
+          <span class="btn btn-outline pbl-soon" aria-disabled="true">Coming soon</span>
+        </article>
       </div>
       <p class="pbl-small">By downloading Pabulong you agree to the <a href="pabulong-terms.php">Terms of Use</a>. Not sure which chip your Mac has? Open the Apple menu and choose About This Mac.</p>
       <details class="pbl-details">
@@ -134,7 +146,7 @@ include __DIR__ . '/includes/layout-top.php';
 
   <section class="section" id="install" aria-labelledby="install-title">
     <div class="container pbl-narrow">
-      <h2 id="install-title">Installing it</h2>
+      <h2 id="install-title">Installing it on a Mac</h2>
       <ol class="pbl-steps">
         <li>Open <strong><?= e($pabulongFile) ?></strong> from your Downloads folder.</li>
         <li>Click Continue, agree to the license, then click Install.</li>
@@ -155,10 +167,12 @@ include __DIR__ . '/includes/layout-top.php';
       <h2 id="questions">Questions</h2>
       <h3>Which call apps does it work with?</h3>
       <p>Any app that lets you choose a microphone. Choose Pabulong Mic in that app’s audio settings.</p>
-      <h3>Does it work on Windows or an Intel Mac?</h3>
-      <p>Not yet. This version needs a Mac with Apple silicon (M1 or later) and macOS 14 Sonoma or later.</p>
+      <h3>When is the Windows version coming?</h3>
+      <p>Soon. It is in the works and will be free too. Until then, Pabulong runs on Macs with Apple silicon (M1 or later) and macOS 14 Sonoma or later.</p>
+      <h3>Does it work on an Intel Mac?</h3>
+      <p>No. The Mac version needs Apple silicon (M1 or later).</p>
       <h3>Does it upload my calls?</h3>
-      <p>No. Pabulong has no account and makes no internet connections. Your microphone audio, your speaker audio and any recordings stay on your Mac.</p>
+      <p>No. Pabulong has no account and makes no internet connections. Your microphone audio, your speaker audio and any recordings stay on your computer.</p>
     </div>
   </section>
 
