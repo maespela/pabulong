@@ -60,6 +60,7 @@ pub const RECORDINGS_APPEAR_HERE: &str = "Recordings will appear here.";
 pub const REVEAL: &str = "Reveal";
 pub const DELETE: &str = "Delete";
 pub const SAVED_SUFFIX: &str = "saved";
+pub const DELETE_CALL_TITLE: &str = "Delete call?";
 
 // Settings --------------------------------------------------------------------------
 pub const SECTION_AUDIO: &str = "Audio";

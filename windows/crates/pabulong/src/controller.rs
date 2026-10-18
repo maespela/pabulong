@@ -36,6 +36,9 @@ pub enum RingOpenError {
 
 /// The Windows side: audio threads, the driver connection and recording.
 pub trait Platform {
+    /// Housekeeping at the start of every tick: notice a lost mic, restart
+    /// loopback when the default speakers change.
+    fn poll(&mut self) {}
     /// Connects to the driver's ring if not connected yet.
     fn open_ring(&mut self) -> Result<(), RingOpenError>;
     fn ring_health(&self) -> Option<RingHealth>;
@@ -157,6 +160,7 @@ impl Controller {
 
     /// Every 50 ms (the macOS realtime watchdog interval).
     pub fn tick(&mut self, p: &mut dyn Platform, now: Instant) {
+        p.poll();
         if let Some(health) = p.ring_health() {
             self.ring = health;
         } else {
@@ -351,6 +355,40 @@ impl Controller {
     pub fn voice_gate_text(&self) -> String {
         voice_gate_text(self.settings.voice_isolation, &self.metrics)
     }
+}
+
+/// `DiagnosticsSnapshot` on macOS, same keys, as pretty JSON.
+pub fn diagnostics_json(c: &Controller, app_version: &str, input_devices: &[String]) -> String {
+    use crate::json::Value;
+    let r = &c.ring;
+    Value::object()
+        .with("appVersion", app_version)
+        .with("virtualDeviceName", text::VIRTUAL_MIC_NAME)
+        .with("settings", c.settings.to_json())
+        .with("inputDevices", input_devices.iter().map(|d| Value::from(d.as_str())).collect::<Vec<_>>())
+        .with(
+            "bridge",
+            Value::object()
+                .with("availableReadFrames", r.available_read_frames)
+                .with("availableWriteFrames", r.available_write_frames)
+                .with("underrunCount", r.underrun_count)
+                .with("overrunCount", r.overrun_count)
+                .with("producerAttached", r.producer_active)
+                .with("consumerRunningCount", r.consumer_running_count)
+                // Windows only: frames the driver skipped to bound latency.
+                .with("droppedCount", r.dropped_count)
+                .with("driverVersion", r.driver_version),
+        )
+        .with(
+            "processor",
+            Value::object()
+                .with("inputRMS", c.metrics.input_rms)
+                .with("outputRMS", c.metrics.output_rms)
+                .with("voiceActive", c.metrics.voice_probability > 0.5),
+        )
+        .with("pipelineStatus", c.pipeline_status)
+        .with("engine", c.engine_name)
+        .to_pretty()
 }
 
 pub fn echo_status_text(enabled: bool, reference_active: bool, m: &ChainMetrics) -> String {
@@ -596,6 +634,17 @@ mod tests {
         c.settings_changed(&mut p);
         assert_eq!(p.running, Some(Some("usb".into())));
         assert_eq!((p.starts, p.stops), (2, 1));
+    }
+
+    #[test]
+    fn diagnostics_export_has_the_macos_keys() {
+        let c = Controller::new(enabled());
+        let json = crate::json::Value::parse(&diagnostics_json(&c, "0.1.0", &["USB Mic [id]".into()])).unwrap();
+        for key in ["appVersion", "virtualDeviceName", "settings", "inputDevices", "bridge", "processor"] {
+            assert!(json.get(key).is_some(), "{key}");
+        }
+        assert_eq!(json.get("virtualDeviceName").and_then(|v| v.as_str()), Some("Pabulong Mic"));
+        assert_eq!(json.get("settings").and_then(|s| s.get("processingEnabled")).and_then(|v| v.as_bool()), Some(true));
     }
 
     #[test]

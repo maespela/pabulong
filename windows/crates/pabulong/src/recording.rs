@@ -419,27 +419,63 @@ impl CallRecorder {
 
 /// `buildMixedPreviewUnlocked` on macOS: local × 0.8 + remote × 0.8, clipped
 /// to ±0.98; just a copy of the local track when there is no remote audio.
+/// Streams both files in chunks, so long calls need little memory.
 pub fn build_mixed_preview(local: &Path, remote: Option<&Path>, mixed: &Path) -> io::Result<()> {
     let Some(remote) = remote else {
         std::fs::copy(local, mixed)?;
         return Ok(());
     };
-    let a = read_wav_16bit_mono(local)?;
-    let b = read_wav_16bit_mono(remote)?;
+    let mut a = WavReader::open(local)?;
+    let mut b = WavReader::open(remote)?;
     let mut w = WavWriter::create(mixed, STORAGE_SAMPLE_RATE)?;
-    let n = a.len().max(b.len());
-    let mut chunk = Vec::with_capacity(4096);
-    for start in (0..n).step_by(4096) {
+    let (mut la, mut lb, mut chunk) = (Vec::new(), Vec::new(), Vec::with_capacity(4096));
+    loop {
+        a.read_chunk(4096, &mut la)?;
+        b.read_chunk(4096, &mut lb)?;
+        if la.is_empty() && lb.is_empty() {
+            break;
+        }
         chunk.clear();
-        for i in start..(start + 4096).min(n) {
-            let l = a.get(i).copied().unwrap_or(0.0);
-            let r = b.get(i).copied().unwrap_or(0.0);
+        for i in 0..la.len().max(lb.len()) {
+            let l = la.get(i).copied().unwrap_or(0.0);
+            let r = lb.get(i).copied().unwrap_or(0.0);
             chunk.push((l * 0.8 + r * 0.8).clamp(-0.98, 0.98));
         }
         w.write(&chunk)?;
     }
     w.finish()?;
     Ok(())
+}
+
+/// Chunked reader for files written by [`WavWriter`].
+struct WavReader {
+    file: io::BufReader<File>,
+}
+
+impl WavReader {
+    fn open(path: &Path) -> io::Result<Self> {
+        let mut file = io::BufReader::new(File::open(path)?);
+        let mut header = [0u8; 44];
+        file.read_exact(&mut header)?;
+        if &header[0..4] != b"RIFF" || &header[8..12] != b"WAVE" {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "not a WAV file"));
+        }
+        Ok(Self { file })
+    }
+
+    fn read_chunk(&mut self, max: usize, out: &mut Vec<f32>) -> io::Result<()> {
+        out.clear();
+        let mut bytes = vec![0u8; max * 2];
+        let mut filled = 0;
+        while filled < bytes.len() {
+            match self.file.read(&mut bytes[filled..])? {
+                0 => break,
+                n => filled += n,
+            }
+        }
+        out.extend(bytes[..filled & !1].chunks_exact(2).map(|b| f32::from(i16::from_le_bytes([b[0], b[1]])) / 32_768.0));
+        Ok(())
+    }
 }
 
 #[cfg(test)]
