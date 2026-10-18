@@ -28,10 +28,9 @@
 #define PABULONG_TOPO_PIN_MIC    0   // in, the "microphone"
 #define PABULONG_TOPO_PIN_BRIDGE 1   // out, to the wave filter
 
-// Kernel new/delete with POOL_FLAGS (stdunk's are disabled by
-// _NEW_DELETE_OPERATORS_ in the project).
+// Kernel new/delete with POOL_FLAGS (stdunk's inline ones are disabled by
+// _NEW_DELETE_OPERATORS_; plain operator delete(void*) comes from stdunk.lib).
 PVOID operator new(size_t size, POOL_FLAGS flags, ULONG tag);
-void __cdecl operator delete(PVOID p);
 void __cdecl operator delete(PVOID p, size_t size);
 void __cdecl operator delete(PVOID p, ULONG tag);
 void __cdecl operator delete[](PVOID p);

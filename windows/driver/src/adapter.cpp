@@ -23,12 +23,7 @@ PVOID operator new(size_t size, POOL_FLAGS flags, ULONG tag)
     return ExAllocatePool2(flags, size, tag);  // zeroed unless POOL_FLAG_UNINITIALIZED
 }
 
-void __cdecl operator delete(PVOID p)
-{
-    if (p != NULL) {
-        ExFreePool(p);
-    }
-}
+// operator delete(void*) itself comes from stdunk.lib.
 
 void __cdecl operator delete(PVOID p, size_t)
 {
