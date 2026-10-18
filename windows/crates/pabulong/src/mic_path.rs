@@ -32,10 +32,6 @@ impl MicPath {
             sink(out);
         });
     }
-
-    pub fn clear(&mut self) {
-        self.framer.clear();
-    }
 }
 
 #[cfg(test)]

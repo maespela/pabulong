@@ -1,0 +1,198 @@
+# Builds and tests Pabulong for Windows on GitHub-hosted runners (free for
+# public repositories). Produces, per architecture (x64, ARM64):
+#   - the tray app and pabulong-setup.exe (Rust, MSVC, RNNoise linked)
+#   - the Pabulong Mic driver package, TEST-signed with a throwaway
+#     certificate from this run (see windows/README.md for real signing)
+#   - an unsigned MSI
+# Nothing here signs with a real certificate or publishes anything.
+name: Windows
+
+on:
+  push:
+    paths:
+      - 'windows/**'
+      - 'rust/**'
+      - 'THIRD_PARTY_NOTICES.md'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'windows/**'
+      - 'rust/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  PABULONG_VERSION: 0.1.0
+
+jobs:
+  # Platform-independent checks: the shared core (unchanged from macOS), the
+  # Windows app's portable logic, and the driver's ring reader in user mode.
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shared core tests
+        working-directory: rust
+        run: cargo test --locked
+      - name: Windows app logic tests (portable parts)
+        working-directory: windows
+        run: cargo test --locked
+      - name: Driver ring reader test (ASan/UBSan)
+        working-directory: windows/driver
+        run: |
+          clang++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Isrc test/ring_test.cpp -o ring_test
+          ./ring_test
+      - name: Driver ring reader test (TSan)
+        working-directory: windows/driver
+        run: |
+          clang++ -std=c++17 -O2 -fsanitize=thread -Isrc test/ring_test.cpp -o ring_test_tsan
+          ./ring_test_tsan
+
+  # The shared core's tests on Windows, with RNNoise built from source.
+  core-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build RNNoise (x64)
+        shell: pwsh
+        run: ./windows/scripts/build-rnnoise.ps1 -Arch x64 -Out "${{ runner.temp }}\rnnoise\x64"
+      - name: Core tests (spectral fallback)
+        working-directory: rust
+        run: cargo test --locked -p noiseless-core
+      - name: Core tests (RNNoise)
+        working-directory: rust
+        env:
+          RNNOISE_LIB_DIR: ${{ runner.temp }}\rnnoise\x64
+        run: cargo test --locked -p noiseless-core --features rnnoise
+
+  app:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            triple: x86_64-pc-windows-msvc
+            devcmd: amd64
+          - arch: arm64
+            triple: aarch64-pc-windows-msvc
+            devcmd: amd64_arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust target
+        run: rustup target add ${{ matrix.triple }}
+      - name: Visual Studio developer environment (link.exe, rc.exe)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.devcmd }}
+      - name: Build RNNoise (${{ matrix.arch }})
+        shell: pwsh
+        run: ./windows/scripts/build-rnnoise.ps1 -Arch ${{ matrix.arch }} -Out "${{ runner.temp }}\rnnoise\${{ matrix.arch }}"
+      - name: Test (x64 only; ARM64 is cross-compiled)
+        if: matrix.arch == 'x64'
+        working-directory: windows
+        env:
+          RNNOISE_LIB_DIR: ${{ runner.temp }}\rnnoise\x64
+        run: cargo test --locked --features pabulong/rnnoise
+      - name: Build release
+        working-directory: windows
+        env:
+          RNNOISE_LIB_DIR: ${{ runner.temp }}\rnnoise\${{ matrix.arch }}
+        run: cargo build --locked --release --target ${{ matrix.triple }} --features pabulong/rnnoise -p pabulong -p pabulong-setup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.arch }}
+          path: |
+            windows/target/${{ matrix.triple }}/release/Pabulong.exe
+            windows/target/${{ matrix.triple }}/release/pabulong-setup.exe
+          if-no-files-found: error
+
+  driver:
+    # Microsoft's own driver-samples CI uses this image with the WDK from NuGet.
+    runs-on: windows-2025-vs2026
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            platform: x64
+            os: 10_VB_X64
+          - arch: arm64
+            platform: ARM64
+            os: 10_VB_ARM64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: WDK and SDK from NuGet
+        working-directory: windows/driver
+        run: nuget restore packages.config -PackagesDirectory packages
+      - name: Build PabulongMic.sys
+        working-directory: windows/driver
+        run: msbuild PabulongMic.vcxproj -p:Configuration=Release -p:Platform=${{ matrix.platform }} -v:minimal
+      - name: Catalog and test-sign
+        working-directory: windows/driver
+        shell: pwsh
+        run: |
+          # StampInf's output (.inf with $ARCH$ and DriverVer filled in).
+          $inf = Get-ChildItem -Recurse -Filter PabulongMic.inf "${{ matrix.platform }}\Release" | Select-Object -First 1
+          $sys = Get-ChildItem -Recurse -Filter PabulongMic.sys "${{ matrix.platform }}\Release" | Select-Object -First 1
+          if (-not $inf -or -not $sys) { throw "PabulongMic.inf/.sys not found under ${{ matrix.platform }}\Release" }
+          $out = "$env:RUNNER_TEMP\driver-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item $inf.FullName, $sys.FullName $out
+          $inf2cat = Get-ChildItem -Recurse -Filter Inf2Cat.exe packages, "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $signtool = Get-ChildItem -Recurse -Filter signtool.exe packages, "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          if (-not $inf2cat -or -not $signtool) { throw "Inf2Cat.exe or signtool.exe not found" }
+          # Throwaway test certificate: only machines in test-signing mode
+          # that import it will load this driver.
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Pabulong Mic TEST (not for distribution)" `
+            -CertStoreLocation Cert:\CurrentUser\My -KeyAlgorithm RSA -KeyLength 3072 -NotAfter (Get-Date).AddMonths(6)
+          & $signtool.FullName sign /fd sha256 /sha1 $cert.Thumbprint /s My "$out\PabulongMic.sys"
+          if ($LASTEXITCODE -ne 0) { throw "signtool (sys) failed" }
+          & $inf2cat.FullName /driver:$out /os:${{ matrix.os }} /uselocaltime
+          if ($LASTEXITCODE -ne 0) { throw "Inf2Cat failed" }
+          & $signtool.FullName sign /fd sha256 /sha1 $cert.Thumbprint /s My "$out\PabulongMic.cat"
+          if ($LASTEXITCODE -ne 0) { throw "signtool (cat) failed" }
+          Export-Certificate -Cert $cert -FilePath "$out\PabulongMic-TEST.cer" | Out-Null
+          Get-ChildItem $out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: driver-${{ matrix.arch }}
+          path: ${{ runner.temp }}/driver-${{ matrix.arch }}
+          if-no-files-found: error
+
+  msi:
+    needs: [app, driver]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-${{ matrix.arch }}
+          path: ${{ runner.temp }}/app
+      - uses: actions/download-artifact@v4
+        with:
+          name: driver-${{ matrix.arch }}
+          path: ${{ runner.temp }}/driver
+      - name: WiX Toolset v5
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.Util.wixext/5.0.2 WixToolset.UI.wixext/5.0.2
+      - name: Build MSI (unsigned)
+        shell: pwsh
+        run: ./windows/scripts/build-msi.ps1 -Arch ${{ matrix.arch }} -Version $env:PABULONG_VERSION -AppDir "${{ runner.temp }}\app" -DriverDir "${{ runner.temp }}\driver"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pabulong-${{ env.PABULONG_VERSION }}-${{ matrix.arch }}-unsigned
+          path: |
+            windows/out/Pabulong-*.msi
+            ${{ runner.temp }}/driver/PabulongMic-TEST.cer
+          if-no-files-found: error

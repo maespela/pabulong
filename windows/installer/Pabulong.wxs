@@ -1,0 +1,95 @@
+<!--
+  Pabulong for Windows installer (WiX Toolset v5).
+
+  Build (see windows/scripts/build-msi.ps1):
+    wix extension add -g WixToolset.Util.wixext/5.0.2 WixToolset.UI.wixext/5.0.2
+    wix build -arch x64 -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext ^
+      -d Version=0.1.0 -d PayloadDir=..\out\x64 -o Pabulong-x64.msi Pabulong.wxs
+
+  PayloadDir holds: Pabulong.exe, pabulong-setup.exe, LICENSE.rtf,
+  THIRD_PARTY_NOTICES.txt and driver\ (PabulongMic.sys/.inf/.cat).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Pabulong"
+           Manufacturer="Next Matter Pro"
+           Version="$(var.Version)"
+           UpgradeCode="5E7A2C41-8B3D-4F6E-9A10-2D4C6B8E0F13"
+           Scope="perMachine"
+           Compressed="yes">
+    <SummaryInformation Description="Pabulong: noise-cancelling microphone" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Pabulong is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="PabulongIcon" SourceFile="$(sys.SOURCEFILEDIR)..\assets\pabulong.ico" />
+    <Property Id="ARPPRODUCTICON" Value="PabulongIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://nextmatterpro.com/training/pabulong-terms.php" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/maespela/pabulong" />
+
+    <!-- 64-bit Windows 10 or later (msiexec reports Windows 10/11 as 603).
+         The driver INF itself requires build 19041 (version 2004) or later. -->
+    <Launch Condition="Installed OR VersionNT64 &gt;= 603"
+            Message="Pabulong needs 64-bit Windows 10 version 2004 or later." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Pabulong">
+        <Directory Id="DriverFolder" Name="driver" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="App" Directory="INSTALLFOLDER">
+      <Component>
+        <File Id="PabulongExe" Source="$(var.PayloadDir)\Pabulong.exe" KeyPath="yes">
+          <Shortcut Name="Pabulong" Directory="ProgramMenuFolder" WorkingDirectory="INSTALLFOLDER" Icon="PabulongIcon" Advertise="yes">
+            <ShortcutProperty Key="System.AppUserModel.ID" Value="NextMatterPro.Pabulong" />
+          </Shortcut>
+        </File>
+      </Component>
+      <Component>
+        <File Id="SetupExe" Source="$(var.PayloadDir)\pabulong-setup.exe" KeyPath="yes" />
+      </Component>
+      <Component>
+        <File Source="$(var.PayloadDir)\THIRD_PARTY_NOTICES.txt" KeyPath="yes" />
+      </Component>
+      <Component>
+        <File Source="$(var.PayloadDir)\LICENSE.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="Driver" Directory="DriverFolder">
+      <Component>
+        <File Id="DriverInf" Source="$(var.PayloadDir)\driver\PabulongMic.inf" KeyPath="yes" />
+      </Component>
+      <Component>
+        <File Source="$(var.PayloadDir)\driver\PabulongMic.sys" KeyPath="yes" />
+      </Component>
+      <Component>
+        <File Source="$(var.PayloadDir)\driver\PabulongMic.cat" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Main" Title="Pabulong" Level="1">
+      <ComponentGroupRef Id="App" />
+      <ComponentGroupRef Id="Driver" />
+    </Feature>
+
+    <!-- Create the Root\PabulongMic device and install the driver on it
+         (elevated, no console window), and remove both on uninstall. -->
+    <SetProperty Id="InstallPabulongMic" Sequence="execute" Before="InstallPabulongMic"
+                 Value="&quot;[INSTALLFOLDER]pabulong-setup.exe&quot; install &quot;[DriverFolder]PabulongMic.inf&quot;" />
+    <CustomAction Id="InstallPabulongMic" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <SetProperty Id="UninstallPabulongMic" Sequence="execute" Before="UninstallPabulongMic"
+                 Value="&quot;[INSTALLFOLDER]pabulong-setup.exe&quot; uninstall &quot;[DriverFolder]PabulongMic.inf&quot;" />
+    <CustomAction Id="UninstallPabulongMic" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="InstallPabulongMic" After="InstallFiles" Condition="NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="UninstallPabulongMic" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.PayloadDir)\LICENSE.rtf" />
+  </Package>
+</Wix>

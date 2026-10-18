@@ -2,7 +2,7 @@
 //! `AppSettings` on macOS, saved to `%APPDATA%\Pabulong\settings.json`.
 
 use crate::json::Value;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SuppressionMode {
@@ -183,10 +183,6 @@ pub struct SettingsStore {
 impl SettingsStore {
     pub fn new(path: PathBuf) -> Self {
         Self { path }
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     pub fn load(&self) -> AppSettings {

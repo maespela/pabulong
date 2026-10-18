@@ -102,7 +102,9 @@ impl Stream {
         let thread = std::thread::Builder::new()
             .name(name.into())
             .spawn(move || {
-                let result = run(source, on_audio, stop_for_thread.0, ready_tx);
+                // Move the whole Send wrapper in (not just its HANDLE field).
+                let stop = stop_for_thread;
+                let result = run(source, on_audio, stop.0, ready_tx);
                 alive_for_thread.store(false, Ordering::Release);
                 result.err()
             })

@@ -59,10 +59,6 @@ impl VoiceChain {
         unsafe { ffi::nlr_pipeline_set_echo_cancellation(self.handle, enabled) }
     }
 
-    pub fn reset(&self) {
-        unsafe { ffi::nlr_pipeline_reset(self.handle) }
-    }
-
     pub fn uses_neural(&self) -> bool {
         unsafe { ffi::nlr_pipeline_uses_neural(self.handle) }
     }

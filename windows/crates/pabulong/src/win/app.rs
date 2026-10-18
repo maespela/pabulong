@@ -612,8 +612,10 @@ unsafe extern "system" fn tray_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam
         }
         WM_QUERYENDSESSION => LRESULT(1),
         WM_ENDSESSION => {
+            // Log-off, shutdown, or the installer's Restart Manager closing us.
             if wparam.0 != 0 {
                 with_app(App::shutdown);
+                PostQuitMessage(0);
             }
             LRESULT(0)
         }
@@ -653,8 +655,7 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam
             LRESULT(0)
         }
         WM_PAINT => {
-            let painted = with_app(|a| a.main.as_ref().filter(|m| m.hwnd == hwnd).map(|m| m.paint()).is_some());
-            if painted == Some(true) {
+            if window::paint(hwnd) {
                 LRESULT(0)
             } else {
                 DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -663,7 +664,7 @@ unsafe extern "system" fn main_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam
         WM_CTLCOLORSTATIC | WM_CTLCOLORBTN => {
             let dc = HDC(wparam.0 as *mut _);
             let control = HWND(lparam.0 as *mut _);
-            with_app(|a| a.main.as_ref().map(|m| m.color(dc, control))).flatten().unwrap_or_else(|| DefWindowProcW(hwnd, msg, wparam, lparam))
+            window::control_color(dc, control).unwrap_or_else(|| DefWindowProcW(hwnd, msg, wparam, lparam))
         }
         WM_CLOSE => {
             // Closing the window keeps Pabulong running in the tray.

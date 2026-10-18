@@ -12,7 +12,7 @@ pub mod ui;
 pub mod wasapi;
 pub mod window;
 
-use windows::core::{HSTRING, PCWSTR};
+use windows::core::HSTRING;
 
 /// NUL-terminated UTF-16 for APIs that keep the pointer only during the call.
 pub fn wide(s: &str) -> Vec<u16> {
@@ -21,10 +21,6 @@ pub fn wide(s: &str) -> Vec<u16> {
 
 pub fn h(s: &str) -> HSTRING {
     HSTRING::from(s)
-}
-
-pub fn pcwstr(buf: &[u16]) -> PCWSTR {
-    PCWSTR(buf.as_ptr())
 }
 
 /// Copies `s` into a fixed UTF-16 buffer (truncating, always NUL-terminated).

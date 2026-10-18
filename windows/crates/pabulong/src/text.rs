@@ -28,7 +28,6 @@ pub const RECORD: &str = "Record";
 pub const STOP: &str = "Stop";
 pub const START_RECORDING_HELP: &str = "Start recording";
 pub const STOP_RECORDING_HELP: &str = "Stop recording";
-pub const STOP_RECORDING: &str = "Stop Recording";
 
 // Terms (first run) ---------------------------------------------------------------
 /// Bump when the Terms of Use or Privacy Notice change materially (same

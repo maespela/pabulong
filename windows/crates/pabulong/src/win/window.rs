@@ -6,17 +6,19 @@ use super::ui::{self, Theme};
 use super::{dialogs, h};
 use crate::settings::{SuppressionMode, VoiceIsolation};
 use crate::text;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, EndPaint, FillRect, InvalidateRect, SetBkMode, SetTextColor, HBRUSH, HDC, PAINTSTRUCT, TRANSPARENT,
+    BeginPaint, EndPaint, FillRect, RedrawWindow, SetBkMode, SetTextColor, HBRUSH, HDC, PAINTSTRUCT, RDW_ALLCHILDREN, RDW_ERASE, RDW_INVALIDATE,
+    TRANSPARENT,
 };
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
-use windows::Win32::UI::Input::KeyboardAndMouse::EnableWindow;
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, LoadCursorW, MoveWindow, RegisterClassExW, SendMessageW, SetForegroundWindow,
-    ShowWindow, BM_SETCHECK, CB_ADDSTRING, CB_RESETCONTENT, CB_SETCURSEL, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, IDC_ARROW, LB_ADDSTRING,
+    ShowWindow, BM_GETCHECK, BM_SETCHECK, CB_ADDSTRING, CB_GETCURSEL, CB_RESETCONTENT, CB_SETCURSEL, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, IDC_ARROW, LB_ADDSTRING,
     LB_GETCURSEL, LB_RESETCONTENT, LB_SETCURSEL, MINMAXINFO, SW_RESTORE, SW_SHOW, WINDOW_EX_STYLE, WM_GETMINMAXINFO, WNDCLASSEXW,
     WS_OVERLAPPEDWINDOW,
 };
@@ -56,6 +58,63 @@ pub enum Page {
     Calls,
     Settings,
     Diagnostics,
+}
+
+/// Colours for WM_CTLCOLOR* and WM_PAINT. Kept apart from the app state:
+/// controls repaint synchronously (e.g. on BM_SETCHECK) while that state is
+/// borrowed, and must still get the brand colours.
+struct Palette {
+    main: HWND,
+    background: HBRUSH,
+    sidebar: HBRUSH,
+    headings: Vec<HWND>,
+    captions: Vec<HWND>,
+    warnings: Vec<HWND>,
+    sidebar_controls: Vec<HWND>,
+}
+
+thread_local! {
+    static PALETTE: RefCell<Option<Palette>> = const { RefCell::new(None) };
+}
+
+/// WM_CTLCOLORSTATIC / WM_CTLCOLORBTN for the main window's controls.
+pub fn control_color(dc: HDC, control: HWND) -> Option<LRESULT> {
+    PALETTE.with(|cell| {
+        let guard = cell.borrow();
+        let p = guard.as_ref()?;
+        let color: COLORREF = if p.warnings.contains(&control) {
+            ui::WARNING
+        } else if p.captions.contains(&control) {
+            ui::SECONDARY
+        } else {
+            ui::NAVY
+        };
+        unsafe {
+            SetTextColor(dc, color);
+            SetBkMode(dc, TRANSPARENT);
+        }
+        let brush = if p.sidebar_controls.contains(&control) { p.sidebar } else { p.background };
+        Some(LRESULT(brush.0 as isize))
+    })
+}
+
+/// WM_PAINT for the main window: off-white content, white sidebar.
+pub fn paint(hwnd: HWND) -> bool {
+    PALETTE.with(|cell| {
+        let guard = cell.borrow();
+        let Some(p) = guard.as_ref().filter(|p| p.main == hwnd) else { return false };
+        unsafe {
+            let mut ps = PAINTSTRUCT::default();
+            let dc = BeginPaint(hwnd, &mut ps);
+            let mut rc = RECT::default();
+            let _ = GetClientRect(hwnd, &mut rc);
+            FillRect(dc, &rc, p.background);
+            let side = RECT { right: scale(hwnd, 220), ..rc };
+            FillRect(dc, &side, p.sidebar);
+            let _ = EndPaint(hwnd, &ps);
+        }
+        true
+    })
 }
 
 /// What the window shows; built by `app` from the controller each tick.
@@ -123,8 +182,6 @@ struct Settings {
 pub struct MainWindow {
     pub hwnd: HWND,
     page: Page,
-    background: HBRUSH,
-    sidebar_brush: HBRUSH,
     // Sidebar
     title: HWND,
     status: HWND,
@@ -150,11 +207,8 @@ pub struct MainWindow {
     health: HWND,
     refresh: HWND,
     export: HWND,
-    // Styling
-    headings: Vec<HWND>,
-    captions: Vec<HWND>,
-    warnings: Vec<HWND>,
     shown: Option<ViewModel>,
+    // Last text pushed to each control, so a tick only touches what changed.
     texts: HashMap<isize, String>,
 }
 
@@ -186,7 +240,7 @@ fn scale(hwnd: HWND, px: i32) -> i32 {
 
 fn place(hwnd: HWND, x: i32, y: i32, w: i32, height: i32) {
     unsafe {
-        let _ = MoveWindow(hwnd, x, y, w.max(0), height.max(0), true);
+        let _ = MoveWindow(hwnd, x, y, w.max(0), height.max(0), false);
     }
 }
 
@@ -299,11 +353,20 @@ impl MainWindow {
             title, calls_heading, empty_title, rec_title, s.heading_audio, s.heading_system, s.heading_recording, s.heading_about, diag_heading,
         ];
 
+        PALETTE.with(|cell| {
+            *cell.borrow_mut() = Some(Palette {
+                main: hwnd,
+                background: theme.background,
+                sidebar: theme.sidebar,
+                headings,
+                captions,
+                warnings,
+                sidebar_controls: vec![title, status, side_processing, nav[0], nav[1], nav[2]],
+            })
+        });
         let mut w = MainWindow {
             hwnd,
             page: Page::Settings,
-            background: theme.background,
-            sidebar_brush: theme.sidebar,
             title,
             status,
             nav,
@@ -325,9 +388,6 @@ impl MainWindow {
             health,
             refresh,
             export,
-            headings,
-            captions,
-            warnings,
             shown: None,
             texts: HashMap::new(),
         };
@@ -350,10 +410,6 @@ impl MainWindow {
         unsafe {
             let _ = DestroyWindow(self.hwnd);
         }
-    }
-
-    pub fn page(&self) -> Page {
-        self.page
     }
 
     pub fn set_page(&mut self, page: Page) {
@@ -517,7 +573,7 @@ impl MainWindow {
             }
         }
         unsafe {
-            let _ = InvalidateRect(Some(hwnd), None, true);
+            let _ = RedrawWindow(Some(hwnd), None, None, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
         }
     }
 
@@ -613,38 +669,6 @@ impl MainWindow {
         let i = unsafe { SendMessageW(self.calls_list, LB_GETCURSEL, None, None) }.0;
         (i >= 0).then_some(i as usize)
     }
-
-    /// WM_CTLCOLORSTATIC / WM_CTLCOLORBTN: brand colours on the right background.
-    pub fn color(&self, dc: HDC, control: HWND) -> LRESULT {
-        let color: COLORREF = if self.headings.contains(&control) {
-            ui::NAVY
-        } else if self.warnings.contains(&control) {
-            ui::WARNING
-        } else if self.captions.contains(&control) {
-            ui::SECONDARY
-        } else {
-            ui::NAVY
-        };
-        let in_sidebar = [self.title, self.status, self.side_processing].contains(&control) || self.nav.contains(&control);
-        unsafe {
-            SetTextColor(dc, color);
-            SetBkMode(dc, TRANSPARENT);
-        }
-        LRESULT(if in_sidebar { self.sidebar_brush.0 as isize } else { self.background.0 as isize })
-    }
-
-    pub fn paint(&self) {
-        unsafe {
-            let mut ps = PAINTSTRUCT::default();
-            let dc = BeginPaint(self.hwnd, &mut ps);
-            let mut rc = RECT::default();
-            let _ = GetClientRect(self.hwnd, &mut rc);
-            FillRect(dc, &rc, self.background);
-            let side = RECT { right: scale(self.hwnd, 220), ..rc };
-            FillRect(dc, &side, self.sidebar_brush);
-            let _ = EndPaint(self.hwnd, &ps);
-        }
-    }
 }
 
 fn add_string(combo: HWND, s: &str) {
@@ -654,21 +678,31 @@ fn add_string(combo: HWND, s: &str) {
     }
 }
 
+// The helpers below read the control's current state first and only send a
+// change: setting a check or selection repaints the control synchronously,
+// and the window is refreshed every 50 ms.
+
 fn select(combo: HWND, index: usize) {
     unsafe {
-        SendMessageW(combo, CB_SETCURSEL, Some(WPARAM(index)), None);
+        if SendMessageW(combo, CB_GETCURSEL, None, None).0 != index as isize {
+            SendMessageW(combo, CB_SETCURSEL, Some(WPARAM(index)), None);
+        }
     }
 }
 
 fn check(button: HWND, on: bool) {
     unsafe {
-        SendMessageW(button, BM_SETCHECK, Some(WPARAM(usize::from(on))), None);
+        if (SendMessageW(button, BM_GETCHECK, None, None).0 == 1) != on {
+            SendMessageW(button, BM_SETCHECK, Some(WPARAM(usize::from(on))), None);
+        }
     }
 }
 
 fn enable(hwnd: HWND, on: bool) {
     unsafe {
-        let _ = EnableWindow(hwnd, on);
+        if IsWindowEnabled(hwnd).as_bool() != on {
+            let _ = EnableWindow(hwnd, on);
+        }
     }
 }
 

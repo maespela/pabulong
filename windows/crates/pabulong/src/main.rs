@@ -6,6 +6,8 @@
 //! OS; `win/` is the Win32 / WASAPI / driver glue.
 
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
+// Off Windows only the portable modules build (for tests), so much is unused.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 mod chain;
 mod controller;

@@ -40,10 +40,6 @@ impl Framer {
         }
         self.pending.drain(..offset);
     }
-
-    pub fn clear(&mut self) {
-        self.pending.clear();
-    }
 }
 
 #[cfg(test)]

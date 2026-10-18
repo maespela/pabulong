@@ -7,8 +7,9 @@
 //!     pabulong-setup uninstall <path\to\PabulongMic.inf>
 //!     pabulong-setup status
 //!
-//! Exit codes: 0 done, 3010 done but a restart is needed, 1 failed.
-//! Needs administrator rights (the MSI runs it elevated).
+//! Exit codes: 0 done, 1 failed. When Windows needs a restart to finish,
+//! it says so on stderr and still exits 0 (pass `--reboot-code` to get 3010
+//! instead). Needs administrator rights (the MSI runs it elevated).
 
 #[cfg(windows)]
 mod imp {
@@ -116,7 +117,9 @@ mod imp {
 
 #[cfg(windows)]
 fn main() {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    let reboot_code = args.iter().any(|a| a == "--reboot-code");
+    args.retain(|a| a != "--reboot-code");
     let inf = args.get(1).map(|p| std::fs::canonicalize(p).map(|p| p.display().to_string().trim_start_matches(r"\\?\").to_string()).unwrap_or_else(|_| p.clone()));
     let result = match args.first().map(String::as_str) {
         Some("install") => match inf.as_deref() {
@@ -146,7 +149,12 @@ fn main() {
     };
     match result {
         Ok(imp::Outcome::Done) => {}
-        Ok(imp::Outcome::RebootNeeded) => std::process::exit(3010),
+        Ok(imp::Outcome::RebootNeeded) => {
+            eprintln!("pabulong-setup: restart Windows to finish");
+            if reboot_code {
+                std::process::exit(3010);
+            }
+        }
         Err(e) => {
             eprintln!("pabulong-setup: {e}");
             std::process::exit(1);

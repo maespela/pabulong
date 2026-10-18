@@ -55,13 +55,6 @@ impl Value {
         }
     }
 
-    pub fn as_array(&self) -> Option<&[Value]> {
-        match self {
-            Value::Array(items) => Some(items),
-            _ => None,
-        }
-    }
-
     /// Pretty-printed with sorted keys (like `JSONEncoder` with
     /// `.prettyPrinted, .sortedKeys` on macOS).
     pub fn to_pretty(&self) -> String {

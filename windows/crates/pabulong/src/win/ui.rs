@@ -1,15 +1,14 @@
 //! Brand fonts and colours, and small helpers for standard Win32 controls.
 
-use super::{h, wide};
+use super::h;
 use std::ffi::c_void;
-use windows::core::PCWSTR;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     AddFontMemResourceEx, CreateFontW, CreateSolidBrush, GetDC, GetTextFaceW, ReleaseDC, SelectObject, CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS,
     DEFAULT_CHARSET, FW_NORMAL, FW_SEMIBOLD, HBRUSH, HFONT, OUT_TT_PRECIS,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, SendMessageW, SetWindowTextW, ShowWindow, BS_AUTOCHECKBOX, BS_PUSHBUTTON, CBS_DROPDOWNLIST, ES_AUTOVSCROLL, ES_MULTILINE,
+    CreateWindowExW, IsWindowVisible, SendMessageW, SetWindowTextW, ShowWindow, BS_AUTOCHECKBOX, BS_PUSHBUTTON, CBS_DROPDOWNLIST, ES_AUTOVSCROLL, ES_MULTILINE,
     ES_READONLY, HMENU, LBS_NOINTEGRALHEIGHT, LBS_NOTIFY, SW_HIDE, SW_SHOW, WINDOW_EX_STYLE, WINDOW_STYLE, WM_SETFONT, WS_CHILD,
     WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
 };
@@ -20,7 +19,6 @@ pub const fn rgb(r: u8, g: u8, b: u8) -> COLORREF {
 
 // Kit colours.
 pub const NAVY: COLORREF = rgb(0x0D, 0x2C, 0x52);
-pub const SIGNAL_BLUE: COLORREF = rgb(0x1A, 0x3C, 0xFF);
 pub const OFF_WHITE: COLORREF = rgb(0xF7, 0xF7, 0xF8);
 pub const WHITE: COLORREF = rgb(0xFF, 0xFF, 0xFF);
 pub const SECONDARY: COLORREF = rgb(0x5B, 0x64, 0x74);
@@ -160,15 +158,8 @@ pub fn set_text(hwnd: HWND, text: &str) {
 
 pub fn show(hwnd: HWND, visible: bool) {
     unsafe {
-        let _ = ShowWindow(hwnd, if visible { SW_SHOW } else { SW_HIDE });
+        if IsWindowVisible(hwnd).as_bool() != visible {
+            let _ = ShowWindow(hwnd, if visible { SW_SHOW } else { SW_HIDE });
+        }
     }
-}
-
-/// Keeps `buf` alive while a PCWSTR to it is in use.
-pub fn pcw(buf: &[u16]) -> PCWSTR {
-    PCWSTR(buf.as_ptr())
-}
-
-pub fn wstr(s: &str) -> Vec<u16> {
-    wide(s)
 }

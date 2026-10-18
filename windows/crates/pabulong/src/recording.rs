@@ -77,7 +77,8 @@ fn wav_header(sample_rate: u32, samples: u32) -> [u8; 44] {
     h
 }
 
-/// Reads a file written by [`WavWriter`] back as floats.
+/// Reads a file written by [`WavWriter`] back as floats (tests).
+#[cfg(test)]
 pub fn read_wav_16bit_mono(path: &Path) -> io::Result<Vec<f32>> {
     let mut bytes = Vec::new();
     File::open(path)?.read_to_end(&mut bytes)?;
