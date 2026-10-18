@@ -39,6 +39,13 @@ grep -q 'hostArchitectures="arm64"' "$DIST" && pass "installs only on Apple sili
 grep -q '<license ' "$DIST" && grep -q '<welcome ' "$DIST" && pass "shows welcome and license" || fail "shows welcome and license"
 # An empty <relocate/> means no bundle can be redirected to another copy on disk.
 if grep -q '<relocate>' "$COMPONENT/PackageInfo"; then fail "bundles are not relocatable"; else pass "bundles are not relocatable"; fi
+# A version-checked bundle is skipped when the installed copy reports a higher
+# CFBundleVersion, so an upgrade could leave the old driver in place.
+if grep -A3 '<bundle-version>' "$COMPONENT/PackageInfo" | grep -q '<bundle id='; then
+  fail "bundles always install (no version check)"
+else
+  pass "bundles always install (no version check)"
+fi
 [[ -x "$COMPONENT/Scripts/postinstall" ]] && pass "postinstall present" || fail "postinstall present"
 
 APP="$COMPONENT/Payload/Applications/Pabulong.app"

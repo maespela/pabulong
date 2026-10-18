@@ -162,11 +162,14 @@ fi
 
 # pkgbuild marks bundles relocatable by default, which makes Installer "upgrade"
 # any other copy of Pabulong.app it finds instead of writing to /Applications.
+# It also version-checks them, which silently keeps an installed bundle whose
+# CFBundleVersion compares higher (earlier builds used "1"), so always install.
 COMPONENT_PLIST="$STAGE/components.plist"
 pkgbuild --analyze --root "$PAYLOAD" "$COMPONENT_PLIST" >/dev/null
 i=0
 while plutil -extract "$i" xml1 -o /dev/null "$COMPONENT_PLIST" >/dev/null 2>&1; do
   plutil -replace "$i.BundleIsRelocatable" -bool NO "$COMPONENT_PLIST"
+  plutil -replace "$i.BundleIsVersionChecked" -bool NO "$COMPONENT_PLIST"
   i=$((i + 1))
 done
 

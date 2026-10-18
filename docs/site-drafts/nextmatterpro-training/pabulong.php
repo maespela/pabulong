@@ -14,7 +14,7 @@ require_once __DIR__ . '/includes/functions.php';
 $pabulongVersion = '0.1.0';
 $pabulongFile = 'Pabulong-' . $pabulongVersion . '-arm64.pkg';
 $pabulongSize = '6.9 MB';
-$pabulongSha256 = '9aeb3cca94ae88be6842db2063c1f6cd61ca59e6ca38a94ef8b636b1435b88ad';
+$pabulongSha256 = '8aa0e7040dd83c0f5ca884d9255a8369e47ccc78ca982019117fc6d6cd8ba57a';
 $pabulongDownload = 'downloads/' . $pabulongFile;
 $pabulongSource = 'https://github.com/maespela/pabulong';
 $pabulongUninstall = 'sudo /Applications/Pabulong.app/Contents/Resources/uninstall.sh';
